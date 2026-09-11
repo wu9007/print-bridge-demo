@@ -11,8 +11,8 @@
   --warn: #e0a36a;
   --bad: #e07a6a;
   --shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
-  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Songti SC",
-    "Source Han Serif SC", serif;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC",
+    "Microsoft YaHei", sans-serif;
   background: var(--paper);
   color: var(--ink);
 }

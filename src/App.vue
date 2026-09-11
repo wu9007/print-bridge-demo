@@ -90,7 +90,7 @@ async function connect(): Promise<void> {
     await refreshPrinters();
   } catch (error) {
     disposeClient();
-    log("bad", `连接失败：${errorText(error)}。请确认本机已启动 PrintBridge，并把 ${origin.value} 加入网站白名单。`);
+    log("bad", `连接失败：${errorText(error)} 请确认本机已启动 PrintBridge，并把 ${origin.value} 加入网站白名单`);
   } finally {
     busy.value = false;
   }
