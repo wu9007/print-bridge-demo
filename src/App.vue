@@ -1,70 +1,85 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from "vue";
 import { PrintBridgeClient, PrintBridgeError } from "print-bridge-sdk";
+import CodeFold from "./CodeFold.vue";
+import { CHONGQING_SAMPLE, LABEL_FIELDS, type BloodLabelData } from "./lib/bloodLabel";
+import { GUIDE_STEPS } from "./lib/guideSnippets";
+import { printRawFile, printRawLabel, printRawUrl } from "./lib/printRaw";
+import { ZPL_TEMPLATE } from "./lib/zplTemplate";
+import labelZplUrl from "./templates/label.zpl?url";
 
 type Printer = Awaited<ReturnType<PrintBridgeClient["getPrintersList"]>>[number];
-import { textToBase64 } from "./lib/encode";
-import { sampleFor, type CommandLanguage } from "./lib/templates";
+type Mode = "raw" | "file" | "pdf";
+type Tone = "muted" | "ok" | "bad";
 
-type LogLevel = "info" | "ok" | "warn" | "bad";
-
-interface LogItem {
-  id: number;
-  time: string;
-  level: LogLevel;
-  text: string;
-}
-
-const host = ref("127.0.0.1");
-const port = ref(17890);
-const language = ref<CommandLanguage>("zpl");
-const command = ref(sampleFor("zpl"));
-const printerName = ref("");
 const printers = ref<Printer[]>([]);
+const printerName = ref("");
 const connected = ref(false);
 const busy = ref(false);
+const showConfig = ref(false);
+const host = ref(localStorage.getItem("pb.host") || "127.0.0.1");
+const port = ref(Number(localStorage.getItem("pb.port")) || 17890);
 const origin = ref("");
-const logs = ref<LogItem[]>([]);
+const mode = ref<Mode>("raw");
+const fields = reactive<BloodLabelData>({ ...CHONGQING_SAMPLE });
+const command = ref(ZPL_TEMPLATE);
+const pdfFile = ref<File | null>(null);
+const rawFile = ref<File | null>(null);
+const pdfInput = ref<HTMLInputElement | null>(null);
+const rawInput = ref<HTMLInputElement | null>(null);
+const rawFileHint = "不选则使用项目 templates/label.zpl，也可上传";
+const status = ref("正在连接…");
+const tone = ref<Tone>("muted");
+
+const canPrint = computed(() => {
+  if (busy.value || !connected.value || !printerName.value) {
+    return false;
+  }
+  if (mode.value === "pdf") {
+    return Boolean(pdfFile.value);
+  }
+  return true;
+});
 
 let client: PrintBridgeClient | null = null;
-let logSeq = 0;
 const unsubs: Array<() => void> = [];
 
-const endpoint = computed(() => `ws://${host.value}:${port.value}/ws`);
-
-function nowTime(): string {
-  return new Date().toLocaleTimeString("zh-CN", { hour12: false });
+function setStatus(next: string, nextTone: Tone = "muted"): void {
+  status.value = next;
+  tone.value = nextTone;
 }
 
-function log(level: LogLevel, text: string): void {
-  logs.value = [{ id: ++logSeq, time: nowTime(), level, text }, ...logs.value].slice(0, 40);
+function token(key: string): string {
+  return `{{${key}}}`;
 }
 
 function errorText(error: unknown): string {
   if (error instanceof PrintBridgeError) {
-    return `${error.code}：${error.message}`;
+    return error.message.replace(/\.$/, "");
   }
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return String(error);
+  return error instanceof Error ? error.message : String(error);
 }
 
 function bindClient(next: PrintBridgeClient): void {
   unsubs.push(
     next.on("connect", () => {
       connected.value = true;
-      log("ok", "已连接本机 PrintBridge");
     }),
-    next.on("disconnect", (event) => {
+    next.on("disconnect", () => {
       connected.value = false;
-      log("warn", `连接断开${event.reason ? `：${event.reason}` : ""}`);
+      setStatus("已断开", "bad");
     }),
     next.on("status", (event) => {
-      log("info", `任务 ${event.jobId} → ${event.status}${event.message ? ` · ${event.message}` : ""}`);
+      if (event.status === "failed") {
+        setStatus(event.message || "打印失败", "bad");
+        return;
+      }
+      if (event.status === "submitted" || event.status === "completed") {
+        setStatus("已发送", "ok");
+      }
     }),
     next.on("error", (error) => {
-      log("bad", errorText(error));
+      setStatus(errorText(error), "bad");
     }),
   );
 }
@@ -76,8 +91,19 @@ function disposeClient(): void {
   connected.value = false;
 }
 
+async function refreshPrinters(): Promise<void> {
+  if (!client?.isConnected()) {
+    return;
+  }
+  printers.value = await client.getPrintersList();
+  if (!printers.value.some((item) => item.name === printerName.value)) {
+    printerName.value = "";
+  }
+}
+
 async function connect(): Promise<void> {
   busy.value = true;
+  setStatus("正在连接…");
   try {
     disposeClient();
     const next = new PrintBridgeClient({
@@ -88,61 +114,86 @@ async function connect(): Promise<void> {
     await next.connect();
     client = next;
     await refreshPrinters();
+    setStatus(printers.value.length ? "已连接" : "已连接，未发现打印机");
   } catch (error) {
     disposeClient();
-    log("bad", `连接失败：${errorText(error)} 请确认本机已启动 PrintBridge，并把 ${origin.value} 加入网站白名单`);
+    const code = error instanceof PrintBridgeError ? error.code : "";
+    if (code === "ORIGIN_NOT_ALLOWED") {
+      setStatus(`未连接，把本页 Origin 加进白名单：${origin.value || "当前页面"}`, "bad");
+    } else {
+      setStatus(errorText(error) || "未连接，请先启动 PrintBridge", "bad");
+    }
   } finally {
     busy.value = false;
   }
 }
 
-function disconnect(): void {
-  disposeClient();
-  printers.value = [];
-  log("info", "已手动断开");
-}
-
-async function refreshPrinters(): Promise<void> {
-  if (!client?.isConnected()) {
-    log("warn", "还没连上 PrintBridge");
+function pickFile(event: Event, target: "raw" | "pdf"): void {
+  const file = (event.target as HTMLInputElement).files?.[0] ?? null;
+  if (target === "raw") {
+    rawFile.value = file;
     return;
   }
-  try {
-    printers.value = await client.getPrintersList();
-    const selected = printers.value.find((item) => item.name === printerName.value);
-    if (!selected) {
-      printerName.value = printers.value.find((item) => item.isDefault)?.name ?? printers.value[0]?.name ?? "";
+  pdfFile.value = file;
+}
+
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+        return;
+      }
+      reject(new Error("无法读取文件"));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("读取失败"));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function saveConfig(): Promise<void> {
+  localStorage.setItem("pb.host", host.value.trim() || "127.0.0.1");
+  localStorage.setItem("pb.port", String(Number(port.value) || 17890));
+  showConfig.value = false;
+  await connect();
+}
+
+async function printJob(): Promise<void> {
+  if (!client?.isConnected()) {
+    await connect();
+    if (!client?.isConnected()) {
+      return;
     }
-    log("ok", `拿到 ${printers.value.length} 台打印机`);
-  } catch (error) {
-    log("bad", `读取打印机失败：${errorText(error)}`);
-  }
-}
-
-function applySample(): void {
-  command.value = sampleFor(language.value);
-}
-
-async function printRaw(): Promise<void> {
-  if (!client?.isConnected()) {
-    log("warn", "请先连接 PrintBridge");
-    return;
-  }
-  const body = command.value.trim();
-  if (!body) {
-    log("warn", "指令是空的");
-    return;
   }
   busy.value = true;
+  setStatus("发送中…");
+  await nextTick();
   try {
-    const accepted = await client.print({
-      type: "raw",
-      printerName: printerName.value || undefined,
-      dataBase64: textToBase64(body),
-    });
-    log("ok", `已入队 ${accepted.jobId}（${accepted.status}）`);
+    if (mode.value === "pdf") {
+      if (!pdfFile.value) {
+        setStatus("请先选择 PDF", "bad");
+        return;
+      }
+      await client.print({
+        type: "pdf",
+        printerName: printerName.value,
+        fileUrl: await readAsDataUrl(pdfFile.value),
+        copies: 1,
+        paper: { widthMm: 210, heightMm: 297 },
+      });
+    } else if (mode.value === "file") {
+      if (rawFile.value) {
+        await printRawFile(client, printerName.value, rawFile.value, fields);
+      } else {
+        await printRawUrl(client, printerName.value, labelZplUrl, fields);
+      }
+    } else {
+      await printRawLabel(client, printerName.value, command.value, fields);
+    }
+    setStatus("已发送", "ok");
   } catch (error) {
-    log("bad", `下发失败：${errorText(error)}`);
+    setStatus(errorText(error), "bad");
   } finally {
     busy.value = false;
   }
@@ -150,7 +201,7 @@ async function printRaw(): Promise<void> {
 
 onMounted(() => {
   origin.value = window.location.origin;
-  log("info", `页面 Origin 是 ${window.location.origin}，需要写进 PrintBridge 网站白名单`);
+  void connect();
 });
 
 onUnmounted(() => {
@@ -159,278 +210,303 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <div class="layout">
   <div class="page">
-    <header class="hero">
-      <p class="kicker">本地打印代理</p>
-      <h1>PrintBridge Demo</h1>
-      <p class="lede">
-        网页只负责填指令。本机
-        <a href="https://github.com/vergil-lai/print-bridge" target="_blank" rel="noreferrer">PrintBridge</a>
-        把 RAW 原样丢给打印机，不走 PDF 栅格。
-      </p>
-    </header>
+    <aside>
+      <h2>变量</h2>
+      <div class="form">
+        <label v-for="item in LABEL_FIELDS" :key="item.key">
+          <span class="field-name">
+            {{ item.label }}
+            <code>{{ token(item.key) }}</code>
+          </span>
+          <input v-model="fields[item.key]" :name="item.key" autocomplete="off" />
+        </label>
+      </div>
+    </aside>
 
-    <main class="layout">
-      <section class="panel">
-        <div class="panel-head">
-          <h2>本机连接</h2>
-          <span class="pill" :data-on="connected">{{ connected ? "在线" : "未连接" }}</span>
+    <div class="main">
+      <header>
+        <div>
+          <h1>打印</h1>
+          <p class="hint">选打印机、填变量、点打印。接入按下方 1～4 步。</p>
         </div>
+        <p :class="['state', tone]">{{ status }}</p>
+      </header>
+
+      <label>
+        打印机
+        <select v-model="printerName" :disabled="!printers.length">
+          <option value="">{{ printers.length ? "请选择打印机" : "无可用打印机" }}</option>
+          <option v-for="item in printers" :key="item.name" :value="item.name">
+            {{ item.name }}
+          </option>
+        </select>
+      </label>
+
+      <div class="modes" role="tablist">
+        <button type="button" role="tab" :aria-selected="mode === 'pdf'" :class="{ on: mode === 'pdf' }" @click="mode = 'pdf'">
+          PDF
+        </button>
+        <button type="button" role="tab" :aria-selected="mode === 'raw'" :class="{ on: mode === 'raw' }" @click="mode = 'raw'">
+          RAW
+        </button>
+        <button type="button" role="tab" :aria-selected="mode === 'file'" :class="{ on: mode === 'file' }" @click="mode = 'file'">
+          文件
+        </button>
+      </div>
+
+      <label v-if="mode === 'raw'">
+        指令
+        <textarea v-model="command" rows="12" spellcheck="false" />
+      </label>
+
+      <label v-if="mode === 'file'" class="file">
+        RAW 文件
+        <button type="button" class="link" @click="rawInput?.click()">
+          {{ rawFile ? rawFile.name : rawFileHint }}
+        </button>
+        <input
+          ref="rawInput"
+          type="file"
+          accept=".zpl,.prn,.raw,.dmi,.txt,application/octet-stream"
+          hidden
+          @change="pickFile($event, 'raw')"
+        />
+      </label>
+
+      <label v-if="mode === 'pdf'" class="file">
+        PDF 文件
+        <button type="button" class="link" @click="pdfInput?.click()">
+          {{ pdfFile ? pdfFile.name : "选择 PDF" }}
+        </button>
+        <input ref="pdfInput" type="file" accept="application/pdf,.pdf" hidden @change="pickFile($event, 'pdf')" />
+      </label>
+
+      <button type="button" class="submit" :disabled="!canPrint" @click="printJob">
+        {{ busy ? "发送中…" : "打印" }}
+      </button>
+
+      <button type="button" class="link config-link" @click="showConfig = !showConfig">配置</button>
+
+      <section v-if="showConfig" class="config">
         <label>
-          Agent 地址
-          <input v-model.trim="host" :disabled="connected" autocomplete="off" />
+          地址
+          <input v-model.trim="host" autocomplete="off" />
         </label>
         <label>
           端口
-          <input v-model.number="port" type="number" min="1" max="65535" :disabled="connected" />
+          <input v-model.number="port" type="number" min="1" max="65535" />
         </label>
-        <p class="hint">默认 {{ endpoint }}。把 <code>{{ origin || "当前页面 Origin" }}</code> 加入网站白名单。</p>
-        <div class="actions">
-          <button type="button" class="primary" :disabled="busy || connected" @click="connect">连接</button>
-          <button type="button" :disabled="!connected" @click="disconnect">断开</button>
-          <button type="button" :disabled="!connected || busy" @click="refreshPrinters">刷新打印机</button>
-        </div>
-
-        <div class="printers">
-          <h3>打印机</h3>
-          <p v-if="!printers.length" class="empty">连接后会列出本机队列里的打印机。</p>
-          <label v-for="item in printers" :key="item.name" class="printer">
-            <input v-model="printerName" type="radio" :value="item.name" />
-            <span>
-              <strong>{{ item.name }}</strong>
-              <small>
-                {{ item.isDefault ? "默认 · " : "" }}{{ item.dpi ? `${item.dpi} dpi · ` : "" }}{{ item.port || "系统队列" }}
-              </small>
-            </span>
-          </label>
-        </div>
+        <label>
+          本页 Origin
+          <input :value="origin" readonly />
+        </label>
+        <button type="button" class="submit" :disabled="busy" @click="saveConfig">保存并连接</button>
       </section>
+    </div>
+  </div>
 
-      <section class="panel wide">
-        <div class="panel-head">
-          <h2>RAW 指令</h2>
-          <div class="langs">
-            <button type="button" :class="{ on: language === 'zpl' }" @click="language = 'zpl'; applySample()">ZPL</button>
-            <button type="button" :class="{ on: language === 'tspl' }" @click="language = 'tspl'; applySample()">TSPL</button>
-          </div>
-        </div>
-        <textarea v-model="command" spellcheck="false" />
-        <div class="actions">
-          <button type="button" class="primary" :disabled="busy || !connected" @click="printRaw">下发 RAW</button>
-          <button type="button" @click="applySample">恢复示例</button>
-        </div>
-        <p class="hint">raw 任务只接受 base64 指令，纸张和份数写在 ZPL / TSPL 里。页面已按 UTF-8 编码，中文可用。</p>
-
-        <div class="log">
-          <h3>事件</h3>
-          <ol>
-            <li v-for="item in logs" :key="item.id" :data-level="item.level">
-              <time>{{ item.time }}</time>
-              <span>{{ item.text }}</span>
-            </li>
-          </ol>
-        </div>
-      </section>
-    </main>
+  <section class="steps">
+    <h2>接入步骤</h2>
+    <CodeFold v-for="step in GUIDE_STEPS" :key="step.title" :title="step.title" :code="step.code" />
+  </section>
   </div>
 </template>
 
 <style scoped>
-.page {
-  width: min(1120px, calc(100% - 32px));
-  margin: 0 auto;
-  padding: 40px 0 72px;
+.layout {
+  width: min(1120px, calc(100% - 40px));
+  margin: 40px auto;
 }
 
-.hero {
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.7fr);
+  align-items: start;
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+.steps {
+  margin-top: 16px;
+  padding: 24px 28px 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+aside {
+  padding: 24px 24px 28px;
+  border-right: 1px solid var(--line);
+}
+
+h2 {
+  margin: 0 0 16px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.main {
+  padding: 28px 28px 32px;
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 28px;
 }
 
-.kicker {
-  margin: 0 0 8px;
-  color: var(--gold);
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  font-size: 12px;
-}
-
-h1,
-h2,
-h3 {
-  margin: 0;
-  font-weight: 650;
-}
-
 h1 {
-  font-size: clamp(36px, 6vw, 64px);
-  letter-spacing: -0.04em;
-}
-
-.lede,
-.hint,
-.empty,
-small {
-  color: var(--muted);
-}
-
-.lede {
-  max-width: 38rem;
+  margin: 0;
   font-size: 18px;
-  line-height: 1.5;
+  font-weight: 600;
 }
 
-.lede a {
-  color: var(--gold);
-}
-
-.layout {
-  display: grid;
-  grid-template-columns: minmax(280px, 360px) 1fr;
-  gap: 18px;
-}
-
-.panel {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 22px;
-  padding: 20px;
-  box-shadow: var(--shadow);
-}
-
-.panel-head,
-.actions,
-.langs,
-.printer {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.panel-head {
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.pill {
-  border-radius: 999px;
-  padding: 4px 10px;
+.hint {
+  margin: 6px 0 0;
   font-size: 12px;
-  border: 1px solid var(--line);
   color: var(--muted);
 }
 
-.pill[data-on="true"] {
+.state {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.state.ok {
   color: var(--ok);
-  border-color: rgba(125, 202, 154, 0.35);
+}
+
+.state.bad {
+  color: var(--bad);
 }
 
 label {
   display: grid;
-  gap: 6px;
-  margin-bottom: 12px;
-  font-size: 13px;
+  gap: 8px;
+  margin-bottom: 16px;
   color: var(--muted);
+  font-size: 13px;
 }
 
+.form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+}
+
+aside label {
+  margin-bottom: 0;
+}
+
+.field-name {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.field-name code {
+  color: var(--text);
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+}
+
+select,
 input,
 textarea {
   width: 100%;
   border: 1px solid var(--line);
-  background: var(--panel-2);
-  color: var(--ink);
-  border-radius: 12px;
-  padding: 10px 12px;
+  background: #fff;
+  border-radius: 0;
+  padding: 8px 10px;
+}
+
+select:focus,
+input:focus,
+textarea:focus {
+  outline: 1px solid var(--focus);
+  outline-offset: 0;
 }
 
 textarea {
-  min-height: 260px;
   resize: vertical;
-  font-family: "SF Mono", "Menlo", "Consolas", monospace;
-  font-size: 13px;
-  line-height: 1.55;
+  min-height: 200px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
 }
 
-.actions {
-  flex-wrap: wrap;
-  margin: 8px 0 4px;
-}
-
-button {
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--ink);
-  border-radius: 999px;
-  padding: 8px 14px;
-}
-
-button.primary,
-.langs .on {
-  background: var(--gold);
-  color: #21180a;
-  border-color: transparent;
-}
-
-.printers,
-.log {
-  margin-top: 22px;
-}
-
-.printers h3,
-.log h3 {
-  margin-bottom: 10px;
-  font-size: 15px;
-}
-
-.printer {
-  align-items: flex-start;
-  padding: 10px 0;
-  border-top: 1px solid var(--line);
-}
-
-.printer strong,
-.printer small {
-  display: block;
-}
-
-.printer strong {
-  color: var(--ink);
-}
-
-.log ol {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  max-height: 280px;
-  overflow: auto;
-}
-
-.log li {
+.modes {
   display: grid;
-  grid-template-columns: 76px 1fr;
-  gap: 10px;
-  padding: 8px 0;
-  border-top: 1px solid var(--line);
-  font-size: 13px;
+  grid-template-columns: 1fr 1fr 1fr;
+  margin-bottom: 20px;
+  border: 1px solid var(--line);
 }
 
-.log time {
+.modes button {
+  border: 0;
+  background: #fff;
+  padding: 8px 0;
+}
+
+.modes .on {
+  background: var(--text);
+  color: #fff;
+}
+
+.file {
+  margin-bottom: 24px;
+}
+
+.link,
+.link:focus {
+  border: 0;
+  background: none;
+  padding: 0;
+  text-align: left;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.submit {
+  width: 100%;
+  border: 0;
+  background: var(--text);
+  color: #fff;
+  padding: 10px 12px;
+}
+
+.config-link {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  text-align: center;
   color: var(--muted);
 }
 
-.log li[data-level="ok"] span {
-  color: var(--ok);
+.config {
+  margin-top: 20px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
 }
 
-.log li[data-level="warn"] span {
-  color: var(--warn);
-}
+@media (max-width: 800px) {
+  .page {
+    grid-template-columns: 1fr;
+  }
 
-.log li[data-level="bad"] span {
-  color: var(--bad);
-}
+  aside {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
 
-@media (max-width: 860px) {
-  .layout {
+  .form {
     grid-template-columns: 1fr;
   }
 }

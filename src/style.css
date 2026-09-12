@@ -1,20 +1,18 @@
 :root {
-  color-scheme: dark;
-  --ink: #ece7dc;
-  --muted: #9a9386;
-  --line: rgba(236, 231, 220, 0.12);
-  --paper: #11130f;
-  --panel: #1a1d17;
-  --panel-2: #22261e;
-  --gold: #d7b06a;
-  --ok: #7dca9a;
-  --warn: #e0a36a;
-  --bad: #e07a6a;
-  --shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
-  font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC",
-    "Microsoft YaHei", sans-serif;
-  background: var(--paper);
-  color: var(--ink);
+  color-scheme: light;
+  --text: #111111;
+  --muted: #6b6b6b;
+  --line: #d8d8d8;
+  --bg: #f4f4f4;
+  --card: #ffffff;
+  --focus: #111111;
+  --ok: #0b6b3a;
+  --bad: #b42318;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.45;
 }
 
 * {
@@ -29,9 +27,7 @@ body,
 }
 
 body {
-  background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(215, 176, 106, 0.08), transparent 50%),
-    var(--paper);
+  background: var(--bg);
 }
 
 button,
@@ -39,13 +35,15 @@ input,
 select,
 textarea {
   font: inherit;
+  color: inherit;
 }
 
 button {
   cursor: pointer;
 }
 
-button:disabled {
+button:disabled,
+select:disabled {
   cursor: not-allowed;
   opacity: 0.45;
 }

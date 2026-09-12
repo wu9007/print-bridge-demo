@@ -1,29 +1,58 @@
 # PrintBridge Demo
 
-浏览器小页面，用来试 [PrintBridge](https://github.com/vergil-lai/print-bridge) 的本机 RAW 打印。
+给业务开发看：怎么把本机打印接到自己的项目里。页面上方是表单，下方按 1～4 步写接入代码。
 
-页面只做三件事：连上本机 Agent、列出打印机、把 ZPL / TSPL 指令编成 base64 后按 `type: "raw"` 下发。不走 PDF、图片或 HTML，避免标签机再栅格化。
+- **RAW / 文件**：标签机。模板或 `.prn` 里的 `{{变量}}` 替换后，`type: "raw"` 下发。
+- **PDF**：普通打印机。必须自己选 PDF，不要把标签做成 PDF 再栅格。
 
-## 本机准备
+## 业务项目里怎么写
 
-1. 安装并启动 [PrintBridge](https://github.com/vergil-lai/print-bridge/releases)。
-2. 在 Agent 里选好默认打印机。
-3. 把页面 Origin 加进网站白名单。本地开发是 `http://127.0.0.1:5173`。
-4. 标签机请用系统里的 RAW / 原始队列。麒麟 V10 优先装 Headless（`print-bridge-server`）。
+用户电脑先安装并启动 [PrintBridge](https://github.com/vergil-lai/print-bridge/releases)，把业务页 Origin 加进白名单。本地开发是 `http://127.0.0.1:5173`。麒麟 V10 用 Headless。默认 `ws://127.0.0.1:17890/ws`。
 
-## 运行
+```bash
+npm install print-bridge-sdk
+```
+
+```ts
+import { PrintBridgeClient } from "print-bridge-sdk";
+import { printRawFile, printRawLabel, printRawUrl } from "./lib/printRaw";
+import labelPrnUrl from "./templates/label.prn?url";
+
+const client = new PrintBridgeClient({ ip: "127.0.0.1", port: 17890 });
+await client.connect();
+
+const printers = await client.getPrintersList();
+const printerName = selectedName; // 用户选的 printers[].name，不要写死机型
+
+await printRawLabel(client, printerName, template, fields);
+await printRawUrl(client, printerName, labelPrnUrl, fields);
+await printRawFile(client, printerName, file, fields);
+
+await client.print({
+  type: "pdf",
+  printerName,
+  fileUrl, // https://... 或 data:application/pdf;base64,...
+  copies: 1,
+  paper: { widthMm: 210, heightMm: 297 },
+});
+```
+
+`print()` 只等到 `queued`。出纸看 `status`：`submitted` / `completed` / `failed` 是系统队列状态，不是物理确认。
+
+页面卸载时 `disconnect()`。`raw` 不要传 `fileUrl`、`paper`、`copies`。
+
+对照：
+
+| 能力 | 文件 |
+|---|---|
+| 连接、选打印机、点打印 | `src/App.vue` |
+| 变量替换 + RAW 下发 | `src/lib/printRaw.ts` |
+| 指令模板 | `src/templates/label.prn` |
+| 字段 | `src/lib/bloodLabel.ts` |
 
 ```bash
 npm install
 npm run dev
 ```
 
-浏览器打开 `http://127.0.0.1:5173`，点「连接」，再「下发 RAW」。
-
-默认连 `ws://127.0.0.1:17890/ws`，和官方 SDK 一致。
-
-## 说明
-
-- 用的是 [`print-bridge-sdk`](https://github.com/vergil-lai/print-bridge-jssdk)。
-- `print()` 返回 `queued` 只表示 Agent 已收单；后续看页面事件里的 `submitted` / `completed` / `failed`。
-- 中文指令按 UTF-8 再转 base64，不要直接 `btoa`。
+打开 `http://127.0.0.1:5173`。SDK：[`print-bridge-sdk`](https://github.com/vergil-lai/print-bridge-jssdk)。
