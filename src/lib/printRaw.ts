@@ -63,6 +63,19 @@ function bytesToBinary(bytes: Uint8Array): string {
   return binary;
 }
 
+function bytesToLog(bytes: Uint8Array): string {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return new TextDecoder("latin1").decode(bytes);
+  }
+}
+
+function logStage(label: string, body: string): void {
+  console.log(`[打印] ${label}\n${body}`);
+  debugger;
+}
+
 async function prepareZplText(text: string, options?: PrintRawOptions): Promise<string> {
   if (options?.rasterizeCjk === false || /~D[GY]/i.test(text)) {
     return text;
@@ -77,14 +90,19 @@ export async function printRawLabel(
   vars: Record<string, string>,
   options?: PrintRawOptions,
 ): Promise<void> {
-  const filled = applyTemplate(template.trim(), vars);
+  const source = template.trim();
+  logStage("1 填充前", source);
+  const filled = applyTemplate(source, vars);
   if (!filled) {
     throw new Error("指令为空");
   }
+  logStage("2 填充后", filled);
+  const converted = await prepareZplText(filled, options);
+  logStage("3 转中文后", converted);
   await client.print({
     type: "raw",
     printerName,
-    dataBase64: textToBase64(await prepareZplText(filled, options)),
+    dataBase64: textToBase64(converted),
   });
 }
 
@@ -104,14 +122,21 @@ async function printRawBytes(
   vars: Record<string, string>,
   options?: PrintRawOptions,
 ): Promise<void> {
+  logStage("1 填充前", bytesToLog(bytes));
   const replaced = applyTemplateToBytes(bytes, vars);
   if (!replaced.length) {
     throw new Error("文件为空");
   }
-  const dataBase64 =
-    options?.rasterizeCjk !== false && shouldRasterizeZpl(replaced)
-      ? textToBase64(await prepareZplText(new TextDecoder().decode(replaced), options))
-      : btoa(bytesToBinary(replaced));
+  logStage("2 填充后", bytesToLog(replaced));
+  let dataBase64: string;
+  if (options?.rasterizeCjk !== false && shouldRasterizeZpl(replaced)) {
+    const converted = await prepareZplText(new TextDecoder().decode(replaced), options);
+    logStage("3 转中文后", converted);
+    dataBase64 = textToBase64(converted);
+  } else {
+    logStage("3 转中文后", "跳过（原字节下发）");
+    dataBase64 = btoa(bytesToBinary(replaced));
+  }
   await client.print({
     type: "raw",
     printerName,
