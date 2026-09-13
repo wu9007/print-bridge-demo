@@ -3,8 +3,6 @@
 export interface BloodLabelData {
   stationName: string;
   license: string;
-  apply: string;
-  notice: string;
   donCode: string;
   donCodeHr: string;
   aboCode: string;
@@ -23,30 +21,35 @@ export interface BloodLabelData {
   produceAt: string;
 }
 
-/** 侧栏只展示一半。打印仍用 CHONGQING_SAMPLE 填完整 .prn。 */
-export const LABEL_FIELDS: Array<{ key: keyof BloodLabelData; label: string }> = [
-  { key: "donCode", label: "献血码" },
-  { key: "donCodeHr", label: "献血码人读" },
-  { key: "abo", label: "ABO" },
-  { key: "rhd", label: "RhD" },
-  { key: "prodCode", label: "产品码" },
-  { key: "bagCode", label: "血袋码" },
-  { key: "volume", label: "规格" },
-  { key: "expireAt", label: "有效期至" },
-  { key: "prodName", label: "产品名称" },
-  { key: "stationName", label: "血站" },
-];
+/** 已知 key 的中文名。解析出的新变量没有名字时，侧栏直接显示 key。 */
+export const FIELD_LABELS: Record<string, string> = {
+  stationName: "血站",
+  license: "许可证",
+  donCode: "献血码",
+  donCodeHr: "献血码人读",
+  aboCode: "血型码",
+  abo: "ABO",
+  rhd: "RhD",
+  prodCode: "产品码",
+  prodName: "产品名称",
+  volume: "规格",
+  preservative: "保养液",
+  storage: "储存",
+  collector: "采集者",
+  producer: "制备者",
+  bagCode: "血袋码",
+  expireAt: "有效期至",
+  collectAt: "采集时间",
+  produceAt: "制备时间",
+};
 
 export const CHONGQING_SAMPLE: BloodLabelData = {
   stationName: "重庆市血液中心",
   license: "血站执业许可证：50010311F11010099",
-  apply: "临床适应证：适用于凝血因子缺乏或大量输血伴有凝血障碍的患者。",
-  notice:
-    "注意事项：输注前请检查包装是否完好无损，外观是否正常，将血浆制剂摇匀；除生理盐水外，血液制剂不得与任何药剂在同一输液器内输注。解冻后可在2-6℃保存，应24h内输注。",
   donCode: "500000261429227",
   donCodeHr: "500000 261429227 U",
   aboCode: "51000",
-  rhd: "RhD阳性性",
+  rhd: "RhD阳性",
   abo: "0",
   prodCode: "E54720000",
   prodName: "病毒灭活新鲜冰冻血浆200ml",

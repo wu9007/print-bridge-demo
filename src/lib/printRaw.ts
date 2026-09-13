@@ -1,6 +1,27 @@
 import type { PrintBridgeClient } from "print-bridge-sdk";
+import { rasterizeCjkFields, shouldRasterizeZpl } from "./zplGfa";
 
 const PLACEHOLDER = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
+
+export type PrintRawOptions = {
+  /** 把含非 ASCII 的 ^FD 画成 ^GFA。默认开启。 */
+  rasterizeCjk?: boolean;
+};
+
+/** 按出现顺序去重，列出 {{donCode}} 这类占位符。 */
+export function listPlaceholders(source: string | Uint8Array): string[] {
+  const text = typeof source === "string" ? source : bytesToBinary(source);
+  const keys: string[] = [];
+  const seen = new Set<string>();
+  for (const match of text.matchAll(PLACEHOLDER)) {
+    const key = match[1];
+    if (!seen.has(key)) {
+      seen.add(key);
+      keys.push(key);
+    }
+  }
+  return keys;
+}
 
 /** 把 {{donCode}} 换成业务数据。缺的键保持原样。 */
 export function applyTemplate(text: string, vars: Record<string, string>): string {
@@ -9,7 +30,7 @@ export function applyTemplate(text: string, vars: Record<string, string>): strin
   );
 }
 
-/** .prn 只改 {{变量}} 这几段字节，其余原样保留。 */
+/** 二进制模板只改 {{变量}} 这几段字节，其余原样保留。 */
 export function applyTemplateToBytes(bytes: Uint8Array, vars: Record<string, string>): Uint8Array {
   const replaced = bytesToBinary(bytes).replace(PLACEHOLDER, (all, key: string) => {
     if (!Object.hasOwn(vars, key)) {
@@ -25,7 +46,7 @@ export function applyTemplateToBytes(bytes: Uint8Array, vars: Record<string, str
 }
 
 /** 指令文本 → base64。<STX> 换成 0x02，换行换成 CR。 */
-export function textToBase64(text: string): string {
+function textToBase64(text: string): string {
   const normalized = text
     .replace(/<STX>/gi, "\x02")
     .replace(/\r\n/g, "\r")
@@ -42,25 +63,33 @@ function bytesToBinary(bytes: Uint8Array): string {
   return binary;
 }
 
+async function prepareZplText(text: string, options?: PrintRawOptions): Promise<string> {
+  if (options?.rasterizeCjk === false || /~D[GY]/i.test(text)) {
+    return text;
+  }
+  return rasterizeCjkFields(text);
+}
+
 export async function printRawLabel(
   client: PrintBridgeClient,
   printerName: string,
   template: string,
   vars: Record<string, string>,
+  options?: PrintRawOptions,
 ): Promise<void> {
-  const body = applyTemplate(template.trim(), vars);
-  if (!body) {
+  const filled = applyTemplate(template.trim(), vars);
+  if (!filled) {
     throw new Error("指令为空");
   }
   await client.print({
     type: "raw",
     printerName,
-    dataBase64: textToBase64(body),
+    dataBase64: textToBase64(await prepareZplText(filled, options)),
   });
 }
 
-/** 读项目里的 .prn。url 用 `import file from "./templates/label.prn?url"`。 */
-export async function loadProjectTemplate(url: string): Promise<Uint8Array> {
+/** 读项目里的模板。url 用 `import file from "./templates/label.zpl?url"`。 */
+async function loadProjectTemplate(url: string): Promise<Uint8Array> {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error("模板读取失败");
@@ -68,20 +97,25 @@ export async function loadProjectTemplate(url: string): Promise<Uint8Array> {
   return new Uint8Array(await response.arrayBuffer());
 }
 
-export async function printRawBytes(
+async function printRawBytes(
   client: PrintBridgeClient,
   printerName: string,
   bytes: Uint8Array,
   vars: Record<string, string>,
+  options?: PrintRawOptions,
 ): Promise<void> {
-  const body = applyTemplateToBytes(bytes, vars);
-  if (!body.length) {
+  const replaced = applyTemplateToBytes(bytes, vars);
+  if (!replaced.length) {
     throw new Error("文件为空");
   }
+  const dataBase64 =
+    options?.rasterizeCjk !== false && shouldRasterizeZpl(replaced)
+      ? textToBase64(await prepareZplText(new TextDecoder().decode(replaced), options))
+      : btoa(bytesToBinary(replaced));
   await client.print({
     type: "raw",
     printerName,
-    dataBase64: btoa(bytesToBinary(body)),
+    dataBase64,
   });
 }
 
@@ -90,8 +124,9 @@ export async function printRawUrl(
   printerName: string,
   url: string,
   vars: Record<string, string>,
+  options?: PrintRawOptions,
 ): Promise<void> {
-  await printRawBytes(client, printerName, await loadProjectTemplate(url), vars);
+  await printRawBytes(client, printerName, await loadProjectTemplate(url), vars, options);
 }
 
 export async function printRawFile(
@@ -99,6 +134,13 @@ export async function printRawFile(
   printerName: string,
   file: File,
   vars: Record<string, string>,
+  options?: PrintRawOptions,
 ): Promise<void> {
-  await printRawBytes(client, printerName, new Uint8Array(await file.arrayBuffer()), vars);
+  await printRawBytes(
+    client,
+    printerName,
+    new Uint8Array(await file.arrayBuffer()),
+    vars,
+    options,
+  );
 }

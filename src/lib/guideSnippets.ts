@@ -25,10 +25,10 @@ client.disconnect();
 `,
   },
   {
-    title: "2. 读取项目里的 .prn",
-    code: `import labelUrl from "./templates/label.prn?url";
+    title: "2. 读取项目里的模板",
+    code: `import labelUrl from "./templates/label.zpl?url";
 
-// 业务项目把 BarTender 导出的文件放到 templates/，和这份 demo 一样。
+// 业务项目把导出的 ZPL / .prn 放到 templates/，和这份 demo 一样。
 const bytes = new Uint8Array(
   await (await fetch(labelUrl)).arrayBuffer(),
 );
@@ -41,7 +41,7 @@ const uploaded = new Uint8Array(await file.arrayBuffer());
     title: "3. 用业务数据替换变量",
     code: `import { applyTemplate, applyTemplateToBytes } from "./lib/printRaw";
 
-// key 必须和 .prn / 指令里的 {{donCode}} 一致。
+// key 必须和模板 / 指令里的 {{donCode}} 一致。
 const fields = {
   donCode: "500000261429227",
   prodName: "病毒灭活新鲜冰冻血浆200ml",
@@ -51,7 +51,7 @@ const fields = {
 const text = applyTemplate("{{donCode}}", fields);
 // "500000261429227"
 
-// .prn 只改占位符字节，STX、图形不动
+// 二进制模板只改占位符字节，其余原样保留
 const replaced = applyTemplateToBytes(bytes, fields);
 `,
   },
@@ -65,8 +65,9 @@ await printRawUrl(client, printerName, labelUrl, fields);
 // 页面上的指令文本
 await printRawLabel(client, printerName, command, fields);
 
-// 用户上传的 .prn
+// 用户上传的文件
 await printRawFile(client, printerName, file, fields);
+// 含非 ASCII 的 ^FD 默认画成图。机内有中文字库时传 { rasterizeCjk: false }。
 
 // 上面三条都是 type: "raw"。print() 只表示 Agent 收了单。
 client.on("status", (event) => {

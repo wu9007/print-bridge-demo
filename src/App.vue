@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { PrintBridgeClient, PrintBridgeError } from "print-bridge-sdk";
 import CodeFold from "./CodeFold.vue";
-import { CHONGQING_SAMPLE, LABEL_FIELDS, type BloodLabelData } from "./lib/bloodLabel";
+import { CHONGQING_SAMPLE, FIELD_LABELS } from "./lib/bloodLabel";
 import { GUIDE_STEPS } from "./lib/guideSnippets";
-import { printRawFile, printRawLabel, printRawUrl } from "./lib/printRaw";
+import { listPlaceholders, printRawFile, printRawLabel, printRawUrl } from "./lib/printRaw";
 import { ZPL_TEMPLATE } from "./lib/zplTemplate";
 import labelZplUrl from "./templates/label.zpl?url";
 
@@ -21,7 +21,9 @@ const host = ref(localStorage.getItem("pb.host") || "127.0.0.1");
 const port = ref(Number(localStorage.getItem("pb.port")) || 17890);
 const origin = ref("");
 const mode = ref<Mode>("raw");
-const fields = reactive<BloodLabelData>({ ...CHONGQING_SAMPLE });
+const rasterizeCjk = ref(true);
+const fields = reactive<Record<string, string>>({ ...CHONGQING_SAMPLE });
+const parsedKeys = ref<string[]>([]);
 const command = ref(ZPL_TEMPLATE);
 const pdfFile = ref<File | null>(null);
 const rawFile = ref<File | null>(null);
@@ -53,6 +55,53 @@ function token(key: string): string {
   return `{{${key}}}`;
 }
 
+function fieldLabel(key: string): string {
+  return FIELD_LABELS[key] ?? key;
+}
+
+function syncFields(keys: string[]): void {
+  parsedKeys.value = keys;
+  for (const key of keys) {
+    if (!Object.hasOwn(fields, key)) {
+      fields[key] = "";
+    }
+  }
+}
+
+const visibleFields = computed(() =>
+  parsedKeys.value.map((key) => ({
+    key,
+    label: fieldLabel(key),
+  })),
+);
+
+const emptyHint = computed(() =>
+  mode.value === "pdf" ? "PDF 没有 {{变量}}" : "当前内容没有 {{变量}}",
+);
+
+watch(
+  [mode, command],
+  () => {
+    if (mode.value === "raw") {
+      syncFields(listPlaceholders(command.value));
+    } else if (mode.value === "pdf") {
+      parsedKeys.value = [];
+    }
+  },
+  { immediate: true },
+);
+
+watch([mode, rawFile], async ([nextMode, file]) => {
+  if (nextMode !== "file") {
+    return;
+  }
+  if (!file) {
+    syncFields(listPlaceholders(ZPL_TEMPLATE));
+    return;
+  }
+  syncFields(listPlaceholders(new Uint8Array(await file.arrayBuffer())));
+});
+
 function errorText(error: unknown): string {
   if (error instanceof PrintBridgeError) {
     return error.message.replace(/\.$/, "");
@@ -74,7 +123,7 @@ function bindClient(next: PrintBridgeClient): void {
         setStatus(event.message || "打印失败", "bad");
         return;
       }
-      if (event.status === "submitted" || event.status === "completed") {
+      if ((event.status === "submitted" || event.status === "completed") && tone.value !== "ok") {
         setStatus("已发送", "ok");
       }
     }),
@@ -184,12 +233,18 @@ async function printJob(): Promise<void> {
       });
     } else if (mode.value === "file") {
       if (rawFile.value) {
-        await printRawFile(client, printerName.value, rawFile.value, fields);
+        await printRawFile(client, printerName.value, rawFile.value, fields, {
+          rasterizeCjk: rasterizeCjk.value,
+        });
       } else {
-        await printRawUrl(client, printerName.value, labelZplUrl, fields);
+        await printRawUrl(client, printerName.value, labelZplUrl, fields, {
+          rasterizeCjk: rasterizeCjk.value,
+        });
       }
     } else {
-      await printRawLabel(client, printerName.value, command.value, fields);
+      await printRawLabel(client, printerName.value, command.value, fields, {
+        rasterizeCjk: rasterizeCjk.value,
+      });
     }
     setStatus("已发送", "ok");
   } catch (error) {
@@ -214,8 +269,9 @@ onUnmounted(() => {
   <div class="page">
     <aside>
       <h2>变量</h2>
-      <div class="form">
-        <label v-for="item in LABEL_FIELDS" :key="item.key">
+      <p v-if="!visibleFields.length" class="empty">{{ emptyHint }}</p>
+      <div v-else class="form">
+        <label v-for="item in visibleFields" :key="item.key">
           <span class="field-name">
             {{ item.label }}
             <code>{{ token(item.key) }}</code>
@@ -259,6 +315,11 @@ onUnmounted(() => {
       <label v-if="mode === 'raw'">
         指令
         <textarea v-model="command" rows="12" spellcheck="false" />
+      </label>
+
+      <label v-if="mode !== 'pdf'" class="check">
+        <input v-model="rasterizeCjk" type="checkbox" />
+        汉字、符号画成图再发送（机子无需中文字库）
       </label>
 
       <label v-if="mode === 'file'" class="file">
@@ -392,6 +453,12 @@ label {
   font-size: 13px;
 }
 
+.empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .form {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -461,6 +528,17 @@ textarea {
 
 .file {
   margin-bottom: 24px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.check input {
+  width: auto;
 }
 
 .link,
