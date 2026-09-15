@@ -5,7 +5,7 @@ const NEEDS_RASTER = /[^\x00-\x7F]/;
 /** 中间只吃 ^A / ^BY / ^CI 等。允许 Bartender 的换行，在第一个 ^FD 停。 */
 const FIELD =
   /\^(FO|FT)(-?\d+),(-?\d+)((?:\s*\^(?!FD|FS|FO|FT|XA|XZ)[^^]+)*)\s*\^FD([^^]*)\^FS/g;
-const FONT_SIZE = /\^A[@0-9A-Za-z][^,]*,(\d+)/;
+const FONT = /\^A[@0-9A-Za-z][^,]*,(\d+)(?:,(\d+))?/i;
 const BOX_BEFORE = /\^FO-?\d+,-?\d+\s*\^GB(\d+),(\d+),[^^]*\^FS\s*$/;
 
 const FONT_ID = "LabelHei";
@@ -60,10 +60,15 @@ function toHex(bytes: Uint8Array): string {
   return hex;
 }
 
-function fontSizeFromCommands(commands: string): number {
-  const match = commands.match(FONT_SIZE);
-  const size = match ? Number(match[1]) : DEFAULT_FONT_SIZE;
-  return Number.isFinite(size) && size > 0 ? size : DEFAULT_FONT_SIZE;
+/** `^A0N,43,35` → 高 43、宽 35。宽为 0 表示按字体比例，不拉扁。 */
+function fontFromCommands(commands: string): { height: number; width: number } {
+  const match = commands.match(FONT);
+  const height = Number(match?.[1]);
+  const width = Number(match?.[2]);
+  return {
+    height: Number.isFinite(height) && height > 0 ? height : DEFAULT_FONT_SIZE,
+    width: Number.isFinite(width) && width > 0 ? width : 0,
+  };
 }
 
 function isBarcodeField(commands: string): boolean {
@@ -124,11 +129,66 @@ function fieldOrigin(
   return `^FO${left},${top}`;
 }
 
+function inkBounds(
+  pixels: Uint8ClampedArray,
+  width: number,
+  height: number,
+): { minX: number; minY: number; maxX: number; maxY: number } | null {
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const i = (y * width + x) * 4;
+      if (pixels[i] + pixels[i + 1] + pixels[i + 2] < INK_THRESHOLD) {
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  return maxX < 0 ? null : { minX, minY, maxX, maxY };
+}
+
+/** 裁到墨水，去掉画字时的边距，让 ^FO 对上字的左上角。 */
+function cropToInk(source: HTMLCanvasElement): HTMLCanvasElement {
+  const ctx = source.getContext("2d", { willReadFrequently: true });
+  if (!ctx) {
+    return source;
+  }
+  const { width, height } = source;
+  const box = inkBounds(ctx.getImageData(0, 0, width, height).data, width, height);
+  if (!box) {
+    return source;
+  }
+  const cropW = box.maxX - box.minX + 1;
+  const cropH = box.maxY - box.minY + 1;
+  const dest = document.createElement("canvas");
+  dest.width = Math.max(8, Math.ceil(cropW / 8) * 8);
+  dest.height = Math.max(8, cropH);
+  const destCtx = dest.getContext("2d");
+  if (!destCtx) {
+    throw new Error("无法创建画布");
+  }
+  destCtx.fillStyle = "#fff";
+  destCtx.fillRect(0, 0, dest.width, dest.height);
+  destCtx.drawImage(source, box.minX, box.minY, cropW, cropH, 0, 0, cropW, cropH);
+  return dest;
+}
+
 async function textToGfa(
   text: string,
   fontSize: number,
   fontFamily: string,
-  opts: { invert?: boolean; minWidth?: number; minHeight?: number; orient?: Orient } = {},
+  opts: {
+    invert?: boolean;
+    minWidth?: number;
+    minHeight?: number;
+    orient?: Orient;
+    charWidth?: number;
+  } = {},
 ): Promise<{ command: string; height: number }> {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
@@ -139,8 +199,16 @@ async function textToGfa(
   const metrics = ctx.measureText(text);
   const ascent = Math.ceil(Math.max(metrics.actualBoundingBoxAscent || fontSize * 0.8, 1));
   const descent = Math.ceil(Math.max(metrics.actualBoundingBoxDescent || fontSize * 0.2, 1));
-  const textWidth = Math.min(Math.ceil(metrics.width + 2), MAX_TEXT_WIDTH);
-  const width = Math.max(8, Math.ceil(Math.max(textWidth, opts.minWidth ?? 0) / 8) * 8);
+  const chars = Math.max([...text].length, 1);
+  const naturalWidth = Math.max(metrics.width, 1);
+  const targetWidth =
+    opts.charWidth && opts.charWidth > 0
+      ? Math.min(opts.charWidth * chars, MAX_TEXT_WIDTH)
+      : Math.min(naturalWidth, MAX_TEXT_WIDTH);
+  const scaleX = targetWidth / naturalWidth;
+  const pad = 8;
+  const boxed = Boolean(opts.invert || opts.minWidth || opts.minHeight);
+  const width = Math.max(8, Math.ceil(Math.max(targetWidth + pad * 2, opts.minWidth ?? 0) / 8) * 8);
   const height = Math.max(8, ascent + descent + 2, opts.minHeight ?? 0);
   canvas.width = width;
   canvas.height = height;
@@ -150,8 +218,12 @@ async function textToGfa(
   ctx.font = `${fontSize}px ${fontFamily}`;
   ctx.textBaseline = "alphabetic";
   const textY = opts.minHeight ? Math.floor((height + ascent - descent) / 2) : ascent + 1;
-  ctx.fillText(text, 8, textY);
-  const oriented = rotateCanvas(canvas, opts.orient ?? "N");
+  const originX = boxed ? Math.max(0, (width - targetWidth) / 2) : pad;
+  ctx.setTransform(scaleX, 0, 0, 1, originX, 0);
+  ctx.fillText(text, 0, textY);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const fitted = boxed ? canvas : cropToInk(canvas);
+  const oriented = rotateCanvas(fitted, opts.orient ?? "N");
   const { bytes, bytesPerRow } = packMonoBitmap(
     oriented.getContext("2d", { willReadFrequently: true })!.getImageData(0, 0, oriented.width, oriented.height).data,
     oriented.width,
@@ -174,7 +246,7 @@ export async function rasterizeCjkFields(zpl: string): Promise<string> {
     if (!text || isBarcodeField(commands) || !needsRaster(text)) {
       continue;
     }
-    const size = fontSizeFromCommands(commands);
+    const font = fontFromCommands(commands);
     const invert = /\^FR/i.test(commands);
     const orient = orientationFromCommands(commands);
     const prefix = zpl.slice(0, match.index ?? 0);
@@ -182,9 +254,10 @@ export async function rasterizeCjkFields(zpl: string): Promise<string> {
     const boxPos = box ? box[0].match(/\^FO(-?\d+),(-?\d+)/) : null;
     pending.push({
       match: `${box?.[0] ?? ""}${all}`,
-      replacement: textToGfa(text, size, fontFamily, {
+      replacement: textToGfa(text, font.height, fontFamily, {
         invert,
         orient,
+        charWidth: font.width,
         minWidth: box ? Number(box[1]) : undefined,
         minHeight: box ? Number(box[2]) : undefined,
       }).then((graphic) => {

@@ -17,7 +17,21 @@ const printerName = ref("");
 const connected = ref(false);
 const busy = ref(false);
 const showConfig = ref(false);
-const host = ref(localStorage.getItem("pb.host") || "127.0.0.1");
+function isLoopback(value: string): boolean {
+  return value === "127.0.0.1" || value === "localhost" || value === "::1";
+}
+
+/** 同事用局域网打开本页时，打印连这台电脑上的印枢，不要连他们自己的 127.0.0.1。 */
+function defaultAgentHost(): string {
+  const pageHost = window.location.hostname || "127.0.0.1";
+  const stored = localStorage.getItem("pb.host")?.trim() || "";
+  if (!stored || (isLoopback(stored) && !isLoopback(pageHost))) {
+    return pageHost;
+  }
+  return stored;
+}
+
+const host = ref(defaultAgentHost());
 const port = ref(Number(localStorage.getItem("pb.port")) || 17890);
 const origin = ref("");
 const mode = ref<Mode>("raw");
@@ -170,7 +184,7 @@ async function connect(): Promise<void> {
     if (code === "ORIGIN_NOT_ALLOWED") {
       setStatus(`未连接，把本页 Origin 加进白名单：${origin.value || "当前页面"}`, "bad");
     } else {
-      setStatus(errorText(error) || "未连接，请先启动 PrintBridge", "bad");
+      setStatus(errorText(error) || "未连接，请先启动印枢", "bad");
     }
   } finally {
     busy.value = false;
@@ -285,10 +299,19 @@ onUnmounted(() => {
       <header>
         <div>
           <h1>打印</h1>
-          <p class="hint">选打印机、填变量、点打印。接入按下方 1～4 步。</p>
+          <p class="hint">选打印机、填变量、点打印。同事用本页局域网地址打开，会连这台电脑上的印枢。</p>
         </div>
         <p :class="['state', tone]">{{ status }}</p>
       </header>
+
+      <label>
+        印枢
+        <span class="endpoint">
+          <input v-model.trim="host" placeholder="地址" autocomplete="off" />
+          <input v-model.number="port" type="number" min="1" max="65535" />
+          <button type="button" class="link" :disabled="busy" @click="saveConfig">连接</button>
+        </span>
+      </label>
 
       <label>
         打印机
@@ -352,18 +375,10 @@ onUnmounted(() => {
 
       <section v-if="showConfig" class="config">
         <label>
-          地址
-          <input v-model.trim="host" autocomplete="off" />
-        </label>
-        <label>
-          端口
-          <input v-model.number="port" type="number" min="1" max="65535" />
-        </label>
-        <label>
           本页 Origin
           <input :value="origin" readonly />
         </label>
-        <button type="button" class="submit" :disabled="busy" @click="saveConfig">保存并连接</button>
+        <p class="hint">把上面的 Origin 加进印枢「网站」。同事用局域网地址打开本页，打印会发到这台电脑的印枢。</p>
       </section>
     </div>
   </div>
@@ -451,6 +466,13 @@ label {
   margin-bottom: 16px;
   color: var(--muted);
   font-size: 13px;
+}
+
+.endpoint {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px auto;
+  align-items: center;
+  gap: 8px;
 }
 
 .empty {
