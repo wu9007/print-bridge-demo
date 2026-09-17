@@ -1,18 +1,18 @@
-# @brick/print
+# 研发对照示例
 
-模板放在业务仓，用 `?raw` 引入后把 **内容** 传进来。研发设什么，`{{变量}}` 就换成什么。
+SDK 在 brick-ui `@brick/print-zpl`（ZPL RAW，不是 PDF / ARJS）。模板放在业务仓，用 `?raw` 引入后把 **内容** 传进来。研发设什么，`{{变量}}` 就换成什么。
 
 不确定命令里有哪些键时：
 
 ```ts
-import { printTemplateVars } from "@brick/print";
+import { printTemplateVars } from "@brick/print-zpl";
 printTemplateVars(templateText);
 ```
 
 下面三份是完整可复制示例。值来自重庆合格签样例；阴性只改了 `RHD`；不合格按自己那份模板的 19 个键填，多原因用 `\\&` 换行。
 
 ```ts
-import { DriverTrayClient, printZpl } from "@brick/print";
+import { DriverTrayClient, printZpl } from "@brick/print-zpl";
 
 const client = new DriverTrayClient();
 await client.connect();

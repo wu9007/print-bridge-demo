@@ -1,12 +1,12 @@
 # printZpl demo
 
-`feat/print-zpl` 只验证启奥托盘标签打印。SDK 在 `packages/print`，包名 `@brick/print`。
+`feat/print-zpl` 只验证启奥托盘标签打印。SDK 用私有源 `@brick/print-zpl`（ZPL RAW，不是 PDF / ARJS）。
 
-研发用法见 `packages/print/README.md`。
+研发用法见 `docs/print-examples.md`。
 
 ```ts
 import rhPositive from "./templates/rh-positive.zpl?raw";
-import { DriverTrayClient, printZpl } from "@brick/print";
+import { DriverTrayClient, printZpl } from "@brick/print-zpl";
 
 const client = new DriverTrayClient();
 await client.connect();

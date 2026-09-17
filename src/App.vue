@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
-import { DriverTrayClient, DriverTrayError, listPlaceholders, printZpl, type TrayPrinter } from "@brick/print";
+import { DriverTrayClient, DriverTrayError, listPlaceholders, printZpl, type TrayPrinter } from "@brick/print-zpl";
 import { CHONGQING_SAMPLE, FIELD_LABELS } from "./lib/bloodLabel";
 import { buildTestPdf } from "./lib/testPdf";
 import { ZPL_TEMPLATES, getTemplate, type TemplateId } from "./lib/zplTemplate";
