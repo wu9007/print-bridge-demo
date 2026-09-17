@@ -1,4 +1,4 @@
-import heiUrl from "../assets/HEI.TTF?url";
+import heiUrl from "./assets/HEI.TTF?url";
 
 /** 机内字体不可靠：汉字、≤、℃ 等非 ASCII。 */
 const NEEDS_RASTER = /[^\x00-\x7F]/;
@@ -418,27 +418,4 @@ export async function rasterizeCjkFields(zpl: string): Promise<string> {
     next = next.replace(item.match, await item.replacement);
   }
   return next;
-}
-
-function looksLikeZpl(bytes: Uint8Array): boolean {
-  const head = new TextDecoder("latin1").decode(bytes.subarray(0, 200));
-  return head.includes("^XA") || head.includes("^FO") || head.includes("^FT");
-}
-
-function isUtf8(bytes: Uint8Array): boolean {
-  try {
-    new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** 文本 ZPL 才能画非 ASCII。~DG / ~DY 或非法 UTF-8 走原字节。 */
-export function shouldRasterizeZpl(bytes: Uint8Array): boolean {
-  if (!looksLikeZpl(bytes) || !isUtf8(bytes)) {
-    return false;
-  }
-  const text = new TextDecoder("latin1").decode(bytes);
-  return !/~D[GY]/i.test(text);
 }

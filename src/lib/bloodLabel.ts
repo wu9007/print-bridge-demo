@@ -1,65 +1,60 @@
 /** 侧栏变量。业务项目用接口数据填同样的 key。 */
-
-export interface BloodLabelData {
-  stationName: string;
-  license: string;
-  donCode: string;
-  donCodeHr: string;
-  aboCode: string;
-  abo: string;
-  rhd: string;
-  prodCode: string;
-  prodName: string;
-  volume: string;
-  preservative: string;
-  storage: string;
-  collector: string;
-  producer: string;
-  bagCode: string;
-  expireAt: string;
-  collectAt: string;
-  produceAt: string;
-}
-
-/** 已知 key 的中文名。解析出的新变量没有名字时，侧栏直接显示 key。 */
 export const FIELD_LABELS: Record<string, string> = {
-  stationName: "血站",
-  license: "许可证",
-  donCode: "献血码",
-  donCodeHr: "献血码人读",
-  aboCode: "血型码",
-  abo: "ABO",
-  rhd: "RhD",
+  mark: "试打",
+  donCode_Bar: "献血码条码",
+  donCode_Station: "献血码站码",
+  donCode_Year: "献血码年",
+  donCode_NO: "献血码序号",
+  donCode_State: "献血码状态",
+  donCode_Check: "献血码校验",
+  bloodTypeCode_Bar: "血型码条码",
+  bloodTypeCode: "血型码",
+  expiryCode_Bar: "有效期码条码",
+  expiryCode: "有效期码",
+  prodCode_Bar: "产品码条码",
   prodCode: "产品码",
+  ABO: "ABO",
+  RHD: "RhD",
   prodName: "产品名称",
-  volume: "规格",
-  preservative: "保养液",
-  storage: "储存",
+  volumeAndUnit: "规格",
+  expiryTime: "有效期至",
+  collectTime: "采集时间",
+  prepTime: "制备时间",
+  indications: "适应证",
+  precautions: "注意事项",
+  solution: "保养液",
+  temperature: "储存条件",
   collector: "采集者",
-  producer: "制备者",
-  bagCode: "血袋码",
-  expireAt: "有效期至",
-  collectAt: "采集时间",
-  produceAt: "制备时间",
+  preparer: "制备者",
+  discardReason: "不合格项目",
 };
 
-export const CHONGQING_SAMPLE: BloodLabelData = {
-  stationName: "重庆市血液中心",
-  license: "血站执业许可证：50010311F11010099",
-  donCode: "500000261429227",
-  donCodeHr: "500000 261429227 U",
-  aboCode: "51000",
-  rhd: "RhD阳性",
-  abo: "0",
-  prodCode: "E54720000",
-  prodName: "病毒灭活新鲜冰冻血浆200ml",
-  volume: "200ml",
-  preservative: "ACD-B",
-  storage: "≤-18℃",
-  collector: "chenshens",
-  producer: "hmmmm",
-  bagCode: "02725511366",
-  expireAt: "2027-09-08 11:36",
-  collectAt: "2026-09-08 11:36",
-  produceAt: "2026-09-08 17:22",
+/** 附件「合格标签传参说明」那份重庆样例。打印时原样替换。 */
+export const CHONGQING_SAMPLE: Record<string, string> = {
+  mark: "OK",
+  donCode_Bar: "=5>500002606533455",
+  donCode_Station: "50000",
+  donCode_Year: "26",
+  donCode_NO: "065334",
+  donCode_State: "55",
+  donCode_Check: "W",
+  bloodTypeCode_Bar: "=%>52800",
+  bloodTypeCode: "2800",
+  expiryCode_Bar: "&>0>50272321357",
+  expiryCode: "0272321357",
+  prodCode_Bar: "=<D2140600",
+  prodCode: "D2140600",
+  ABO: "AB",
+  RHD: "Rh(D)阳性",
+  prodName: "病毒灭活新鲜冰冻血浆150ml",
+  volumeAndUnit: "150 ml",
+  expiryTime: "2027-08-20 13:57",
+  collectTime: "2026-08-20 13:57",
+  prepTime: "2027-08-20 20:08",
+  indications: "临床适应症：适用于凝血因子缺乏或大量输血伴有凝血障碍",
+  precautions: "注意事项：输注前请检查包装是否完好无损，外观是否正常",
+  solution: "ACD-B",
+  temperature: "2-6℃",
+  collector: "085",
+  preparer: "JSK",
 };

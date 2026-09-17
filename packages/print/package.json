@@ -1,0 +1,13 @@
+{
+  "name": "@brick/print",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "连本机驱动助手，按模板变量原样替换后发 ZPL",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

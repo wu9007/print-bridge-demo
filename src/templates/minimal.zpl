@@ -1,0 +1,5 @@
+^XA
+^CI28
+^FO24,24^A0N,36,28^FD{{mark}}^FS
+^PQ1
+^XZ
