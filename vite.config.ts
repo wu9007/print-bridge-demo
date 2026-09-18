@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [vue()],
   resolve: {
     alias: {
-      "@yinshu/print-zpl": path.resolve(__dirname, "packages/print-zpl/src/index.ts"),
+      "@yinshu-print/print-zpl": path.resolve(__dirname, "packages/print-zpl/src/index.ts"),
     },
   },
   build: {

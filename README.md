@@ -22,7 +22,7 @@ Open http://127.0.0.1:5173/ — pick a template, fill vars, print.
 Keep the template in your app. Import **text** with `?raw`. Do not pass a file path. Whatever you set replaces `{{key}}` as-is. No barcode math. No prefixes.
 
 ```ts
-import { YinshuClient, pickPrinter, printTemplateVars, printZpl } from '@yinshu/print-zpl';
+import { YinshuClient, pickPrinter, printTemplateVars, printZpl } from '@yinshu-print/print-zpl';
 import hospital from './templates/hospital.zpl?raw';
 
 printTemplateVars(hospital);

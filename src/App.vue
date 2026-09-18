@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
-import { YinshuClient, listPlaceholders, printZpl, type YinshuPrinter } from "@yinshu/print-zpl";
+import { YinshuClient, listPlaceholders, printZpl, type YinshuPrinter } from "@yinshu-print/print-zpl";
 import { FIELD_LABELS, SAMPLE_VARS } from "./lib/fields";
 import { ZPL_TEMPLATES, getTemplate, type TemplateId } from "./lib/zplTemplate";
 

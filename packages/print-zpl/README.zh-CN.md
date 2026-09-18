@@ -1,30 +1,23 @@
-# @yinshu/print-zpl
+# @yinshu-print/print-zpl
 
 [English](README.md) · **中文**
 
-把这个目录拷进业务仓。`{{变量}}` 原样替换，发 **ZPL RAW** 给印枢（`ws://127.0.0.1:17890/ws`）。不是 PDF / ARJS。
+`{{变量}}` 原样替换，发 **ZPL RAW** 给印枢（`ws://127.0.0.1:17890/ws`）。不是 PDF / ARJS。
 
-需要浏览器 + Vite（`?raw`、`?url`）。不用先发包。
+需要浏览器。模板仍用 Vite `?raw`。
 
-## 1. 拿走
+## 1. 安装
 
-```text
-your-app/
-  print-zpl/          ← 本目录
-  templates/*.zpl
+```bash
+npm install @yinshu-print/print-zpl
 ```
 
 ```ts
-import { YinshuClient, pickPrinter, printTemplateVars, printZpl } from './print-zpl';
+import { YinshuClient, pickPrinter, printTemplateVars, printZpl } from '@yinshu-print/print-zpl';
 import hospital from './templates/hospital.zpl?raw';
 ```
 
-可选别名：
-
-```ts
-// vite.config.ts
-{ '@yinshu/print-zpl': fileURLToPath(new URL('./print-zpl/src/index.ts', import.meta.url)) }
-```
+也可以拷走本目录，改成 `import from './print-zpl'`。
 
 ## 2. 印枢
 

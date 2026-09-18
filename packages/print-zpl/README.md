@@ -1,30 +1,23 @@
-# @yinshu/print-zpl
+# @yinshu-print/print-zpl
 
 **English** · [中文](README.zh-CN.md)
 
-Copy this folder. Fill `{{keys}}` as-is. Send **ZPL RAW** to Yinshu (`ws://127.0.0.1:17890/ws`). Not PDF / ARJS.
+Fill `{{keys}}` as-is. Send **ZPL RAW** to Yinshu (`ws://127.0.0.1:17890/ws`). Not PDF / ARJS.
 
-Needs a browser + Vite (`?raw`, `?url`). No publish step.
+Needs a browser. Templates still use Vite `?raw`.
 
-## 1. Take
+## 1. Install
 
-```text
-your-app/
-  print-zpl/          ← this folder
-  templates/*.zpl
+```bash
+npm install @yinshu-print/print-zpl
 ```
 
 ```ts
-import { YinshuClient, pickPrinter, printTemplateVars, printZpl } from './print-zpl';
+import { YinshuClient, pickPrinter, printTemplateVars, printZpl } from '@yinshu-print/print-zpl';
 import hospital from './templates/hospital.zpl?raw';
 ```
 
-Optional alias:
-
-```ts
-// vite.config.ts
-{ '@yinshu/print-zpl': fileURLToPath(new URL('./print-zpl/src/index.ts', import.meta.url)) }
-```
+Or copy this folder and import `./print-zpl`.
 
 ## 2. Yinshu
 

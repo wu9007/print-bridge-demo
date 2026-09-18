@@ -22,7 +22,7 @@ npm run dev
 模板放在业务仓。用 `?raw` 引入 **内容**，不要传文件路径。研发设什么，`{{变量}}` 就换成什么。不算条码，不加前缀。
 
 ```ts
-import { YinshuClient, pickPrinter, printTemplateVars, printZpl } from '@yinshu/print-zpl';
+import { YinshuClient, pickPrinter, printTemplateVars, printZpl } from '@yinshu-print/print-zpl';
 import hospital from './templates/hospital.zpl?raw';
 
 printTemplateVars(hospital);
