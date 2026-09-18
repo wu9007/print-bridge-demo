@@ -73,7 +73,12 @@ export class YinshuClient {
         }
         settled = true;
         ws.close();
-        reject(new YinshuError("连接超时", "CONNECTION_TIMEOUT"));
+        reject(
+          new YinshuError(
+            "连接超时。请确认印枢已启动，并且网站名单包含当前页面。",
+            "CONNECTION_TIMEOUT",
+          ),
+        );
       }, 8000);
       ws.onopen = () => {
         if (settled) {
@@ -143,7 +148,7 @@ export class YinshuClient {
     extra: Record<string, unknown> = {},
   ): Promise<T> {
     if (!this.isConnected() || !this.ws) {
-      throw new YinshuError("未连接", "NOT_CONNECTED");
+      throw new YinshuError("未连接。请先启动印枢。", "NOT_CONNECTED");
     }
     const request_id = this.nextId("req");
     const timeoutMs = type === "print" ? 60_000 : 10_000;

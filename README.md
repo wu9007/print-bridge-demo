@@ -2,11 +2,11 @@
 
 **English** · [中文](README.zh-CN.md)
 
-Local Yinshu demo for **ZPL RAW**. Take `packages/print-zpl`. Not PDF / ARJS.
+Local Yinshu demo for **ZPL RAW**. The SDK is [`@yinshu-print/print-zpl`](https://www.npmjs.com/package/@yinshu-print/print-zpl). Not PDF / ARJS.
 
 How to print: [packages/print-zpl/README.md](packages/print-zpl/README.md)
 
-## 1. Run
+## 1. Run the demo
 
 Start Yinshu. Add `http://127.0.0.1:5173` to the website list.
 
@@ -15,9 +15,17 @@ npm install
 npm run dev
 ```
 
-Open http://127.0.0.1:5173/ — pick a template, fill vars, print.
+This install pulls **the npm package**. Open http://127.0.0.1:5173/ — pick a template, fill vars, print.
 
-## 2. Print
+Do **not** add a root `workspaces` field that includes `packages/print-zpl`. npm would then link the folder and ignore the registry.
+
+The page shows `当前是 npm 包。` when it is using the published build.
+
+## 2. Print in your app
+
+```bash
+npm install @yinshu-print/print-zpl
+```
 
 Keep the template in your app. Import **text** with `?raw`. Do not pass a file path. Whatever you set replaces `{{key}}` as-is. No barcode math. No prefixes.
 
@@ -32,7 +40,7 @@ await client.connect();
 const printerName = pickPrinter(await client.getPrintersList());
 ```
 
-Unsure which keys exist? `printTemplateVars` logs a copy-paste object.
+Unsure which keys exist? `printTemplateVars` logs a copy-paste object. Pass a second argument to fill the values you already have.
 
 ## 3. Examples
 
@@ -78,9 +86,22 @@ await printZpl(client, printerName, industrial, {
 });
 ```
 
-## 4. Rules
+## 4. Change the SDK in this repo
 
-- Takeaway: `packages/print-zpl`
+```bash
+npm run dev:local
+```
+
+Vite aliases `@yinshu-print/print-zpl` to `packages/print-zpl/src/index.ts`. Edit the source, the demo hot-reloads. The page shows `当前是本地 SDK 源码。`
+
+You do not need to build `dist` first. `npm run dev` (no `:local`) still uses `node_modules`.
+
+To ship a new SDK version: bump `packages/print-zpl/package.json`, then push tag `print-zpl-v*` or run the **Publish print-zpl** GitHub Action.
+
+## 5. Rules
+
+- App install: `npm install @yinshu-print/print-zpl`
 - Surface: `YinshuClient` · `printZpl` · `printTemplateVars` · `pickPrinter` · `listPlaceholders`
 - Labels: ZPL RAW only. Not PDF / ARJS
 - Templates live in `src/templates/`. Start with `minimal` to test the path
+- CJK font is inside the package. `queued` means accepted, not paper out

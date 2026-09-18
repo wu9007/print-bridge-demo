@@ -39,6 +39,11 @@
     "prepublishOnly": "npm run build && npm run tsc",
     "pub": "npm publish --access public --registry https://registry.npmjs.org/"
   },
+  "devDependencies": {
+    "typescript": "~5.9.2",
+    "vite": "^7.1.5",
+    "vue-tsc": "^3.0.7"
+  },
   "keywords": [
     "yinshu",
     "zpl",

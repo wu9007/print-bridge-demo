@@ -14,11 +14,15 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "types": ["vite/client"],
     "baseUrl": ".",
     "paths": {
       "@yinshu-print/print-zpl": ["packages/print-zpl/src/index.ts"]
-    }
+    },
+    "types": ["vite/client"]
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "packages/print-zpl/src/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.vue",
+    "packages/print-zpl/src/**/*.ts"
+  ]
 }

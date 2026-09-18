@@ -4,7 +4,7 @@
 
 Fill `{{keys}}` as-is. Send **ZPL RAW** to Yinshu (`ws://127.0.0.1:17890/ws`). Not PDF / ARJS.
 
-Needs a browser. Templates still use Vite `?raw`.
+Needs a browser. Templates still use Vite `?raw`. CJK font is bundled.
 
 ## 1. Install
 
@@ -17,7 +17,7 @@ import { YinshuClient, pickPrinter, printTemplateVars, printZpl } from '@yinshu-
 import hospital from './templates/hospital.zpl?raw';
 ```
 
-Or copy this folder and import `./print-zpl`.
+Copy this folder only if you cannot use npm. Then import `./print-zpl`.
 
 ## 2. Yinshu
 
@@ -39,9 +39,13 @@ await printZpl(client, printerName, hospital, {
 });
 ```
 
-Pass **template text**, not a file path. Missing keys stay `{{key}}`. Extra keys are ignored. No barcode math. No prefixes.
+`printTemplateVars(text, values?)` logs a copy-paste object. Pass `values` to fill what you already typed.
+
+Pass **template text**, not a file path. Missing keys stay `{{key}}`. Extra keys are ignored. No barcode math. No prefixes. `vars` can be omitted for a static template.
 
 CJK in `^FD` is drawn as `^GFA` by default. Turn off with `{ rasterizeCjk: false }`.
+
+These sample templates are `^PW576` at **203 DPI**. A 300 DPI printer will look smaller unless you scale the template.
 
 ## 4. Examples
 
@@ -97,4 +101,6 @@ await printZpl(client, printerName, industrial, {
 | Form fields | `listPlaceholders` |
 | First online printer | `pickPrinter` |
 
-Labels: `printZpl` only. Not PDF / ARJS. These templates are `^PW576` at **203 DPI**.
+Labels: `printZpl` only. Not PDF / ARJS.
+
+This repo's demo uses the npm package by default (`npm run dev`). To edit this folder with HMR: `npm run dev:local` at the repo root.

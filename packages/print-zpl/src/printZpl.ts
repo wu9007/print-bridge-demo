@@ -26,10 +26,15 @@ export function listPlaceholders(templateText: string): string[] {
   return keys;
 }
 
-/** 把命令里的变量打成可直接粘贴的对象字面量。 */
-export function printTemplateVars(templateText: string): string {
-  const vars = listPlaceholders(assertTemplateText(templateText));
-  const text = vars.length ? `{\n${vars.map((key) => `  ${key}: "",`).join('\n')}\n}` : '{}';
+/** 把命令里的变量打成可直接粘贴的对象字面量。第二参有值就填进去。 */
+export function printTemplateVars(
+  templateText: string,
+  values: Record<string, string> = {}
+): string {
+  const keys = listPlaceholders(assertTemplateText(templateText));
+  const text = keys.length
+    ? `{\n${keys.map((key) => `  ${key}: ${JSON.stringify(values[key] ?? '')},`).join('\n')}\n}`
+    : '{}';
   console.log(text);
   return text;
 }
@@ -68,7 +73,7 @@ export async function printZpl(
   client: PrintZplClient,
   printerName: string,
   templateText: string,
-  vars: Record<string, string>,
+  vars: Record<string, string> = {},
   options?: PrintZplOptions
 ): Promise<void> {
   if (!printerName.trim()) {

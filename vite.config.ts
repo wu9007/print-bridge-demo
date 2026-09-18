@@ -1,13 +1,19 @@
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 
-export default defineConfig({
+const root = path.dirname(fileURLToPath(import.meta.url));
+
+export default defineConfig(({ mode }) => ({
   plugins: [vue()],
   resolve: {
-    alias: {
-      "@yinshu-print/print-zpl": path.resolve(__dirname, "packages/print-zpl/src/index.ts"),
-    },
+    alias:
+      mode === "local"
+        ? {
+            "@yinshu-print/print-zpl": path.resolve(root, "packages/print-zpl/src/index.ts"),
+          }
+        : {},
   },
   build: {
     sourcemap: true,
@@ -17,4 +23,4 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
   },
-});
+}));

@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
-import { YinshuClient, listPlaceholders, printZpl, type YinshuPrinter } from "@yinshu-print/print-zpl";
+import {
+  YinshuClient,
+  listPlaceholders,
+  pickPrinter,
+  printZpl,
+  type YinshuPrinter,
+} from "@yinshu-print/print-zpl";
 import { FIELD_LABELS, SAMPLE_VARS } from "./lib/fields";
 import { ZPL_TEMPLATES, getTemplate, type TemplateId } from "./lib/zplTemplate";
 
@@ -17,6 +23,7 @@ const parsedKeys = ref<string[]>([]);
 const status = ref("正在连接…");
 const tone = ref<Tone>("muted");
 const currentTemplate = computed(() => getTemplate(templateId.value));
+const localSdk = import.meta.env.MODE === "local";
 
 const canPrint = computed(
   () => !busy.value && connected.value && Boolean(printerName.value),
@@ -69,9 +76,26 @@ function disposeClient(): void {
 
 function applyPrinters(next: YinshuPrinter[]): void {
   printers.value = next;
-  if (!next.some((item) => item.name === printerName.value)) {
+  if (next.some((item) => item.name === printerName.value)) {
+    return;
+  }
+  try {
+    printerName.value = pickPrinter(next);
+  } catch {
     printerName.value = "";
   }
+}
+
+function copyVars(): void {
+  const keys = parsedKeys.value;
+  const text = keys.length
+    ? `{\n${keys.map((key) => `  ${key}: ${JSON.stringify(fields[key] ?? "")},`).join("\n")}\n}`
+    : "{}";
+  console.log(text);
+  void navigator.clipboard.writeText(text).then(
+    () => setStatus("变量已复制", "ok"),
+    () => setStatus("已打到控制台，从那里复制", "muted"),
+  );
 }
 
 function flag(item: YinshuPrinter): string {
@@ -164,7 +188,17 @@ onUnmounted(() => {
 <template>
   <div class="page">
     <aside>
-      <h2>变量</h2>
+      <div class="vars-head">
+        <h2>变量</h2>
+        <button
+          v-if="visibleFields.length"
+          type="button"
+          class="link"
+          @click="copyVars"
+        >
+          复制
+        </button>
+      </div>
       <p v-if="!visibleFields.length" class="empty">当前内容没有变量</p>
       <div v-else class="form">
         <label v-for="item in visibleFields" :key="item.key">
@@ -181,7 +215,10 @@ onUnmounted(() => {
       <header>
         <div>
           <h1>印枢</h1>
-          <p class="hint">填变量、转中文、发给本机印枢。模板用内容，不传路径。</p>
+          <p class="hint">
+            填变量、转中文、发给本机印枢。模板用内容，不传路径。
+            {{ localSdk ? "当前是本地 SDK 源码。" : "当前是 npm 包。" }}
+          </p>
         </div>
         <p :class="['state', tone]">
           {{ status }}
@@ -261,8 +298,15 @@ aside {
   border-right: 1px solid var(--line);
 }
 
+.vars-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
 h2 {
-  margin: 0 0 16px;
+  margin: 0;
   font-size: 14px;
   font-weight: 600;
 }

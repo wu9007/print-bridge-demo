@@ -4,7 +4,7 @@
 
 `{{变量}}` 原样替换，发 **ZPL RAW** 给印枢（`ws://127.0.0.1:17890/ws`）。不是 PDF / ARJS。
 
-需要浏览器。模板仍用 Vite `?raw`。
+需要浏览器。模板仍用 Vite `?raw`。中文字体打在包里。
 
 ## 1. 安装
 
@@ -17,7 +17,7 @@ import { YinshuClient, pickPrinter, printTemplateVars, printZpl } from '@yinshu-
 import hospital from './templates/hospital.zpl?raw';
 ```
 
-也可以拷走本目录，改成 `import from './print-zpl'`。
+装不了 npm 再拷本目录，改成 `import from './print-zpl'`。
 
 ## 2. 印枢
 
@@ -39,9 +39,13 @@ await printZpl(client, printerName, hospital, {
 });
 ```
 
-传模板 **内容**，不要传文件路径。没设的键会留下 `{{key}}`。多传的键忽略。不算条码，不加前缀。
+`printTemplateVars(text, values?)` 打出可粘贴对象。已经填过值就传 `values`。
+
+传模板 **内容**，不要传文件路径。没设的键会留下 `{{key}}`。多传的键忽略。不算条码，不加前缀。静态模板可以不传 `vars`。
 
 `^FD` 里的汉字默认画成 `^GFA`。关掉：`{ rasterizeCjk: false }`。
+
+这些示例模板是 `^PW576`，按 **203 DPI** 排的。300 DPI 的机子看起来会更小，要按分辨率改模板。
 
 ## 4. 完整示例
 
@@ -97,4 +101,6 @@ await printZpl(client, printerName, industrial, {
 | 做表单 | `listPlaceholders` |
 | 选一台在线打印机 | `pickPrinter` |
 
-标签只走 `printZpl`。不是 PDF / ARJS。这些模板是 `^PW576`，按 **203 DPI** 排的。
+标签只走 `printZpl`。不是 PDF / ARJS。
+
+本仓 demo 默认用 npm 包（`npm run dev`）。要改这个目录并热更新：在仓库根目录跑 `npm run dev:local`。
