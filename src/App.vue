@@ -214,7 +214,7 @@ onUnmounted(() => {
     <div class="main">
       <header>
         <div>
-          <h1>printZpl</h1>
+          <h1>印枢</h1>
           <p class="hint">填变量、转中文、发给本机驱动助手。模板用内容，不传路径。</p>
         </div>
         <p :class="['state', tone]">

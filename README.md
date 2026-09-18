@@ -1,6 +1,6 @@
-# printZpl demo
+# 印枢 demo
 
-`feat/print-zpl` 只验证启奥托盘标签打印。SDK 用私有源 `@brick/print-zpl`（ZPL RAW，不是 PDF / ARJS）。
+只验证本机驱动助手标签打印。SDK 用私有源 `@brick/print-zpl`（ZPL RAW，不是 PDF / ARJS）。
 
 研发用法见 `docs/print-examples.md`。
 
@@ -13,7 +13,7 @@ await client.connect();
 await printZpl(client, printerName, rhPositive, vars);
 ```
 
-模板放在业务仓 `src/templates/`，用 `?raw` 引入后把 **内容** 传给 SDK。不要传路径。先用 `minimal` 试通路。
+模板放在 `src/templates/`，用 `?raw` 引入后把 **内容** 传给 SDK。不要传路径。先用 `minimal` 试通路。
 
 ```bash
 npm install
