@@ -2,11 +2,11 @@
 
 **English** · [中文](README.zh-CN.md)
 
-Local Yinshu demo for blood-label **ZPL RAW**. Take `packages/print-zpl`. Not PDF / ARJS.
+Local Yinshu demo for **ZPL RAW**. Take `packages/print-zpl`. Not PDF / ARJS.
 
-研发用法以 [packages/print-zpl/README.md](packages/print-zpl/README.md) 为准。
+How to print: [packages/print-zpl/README.md](packages/print-zpl/README.md)
 
-## 1. Run
+## Run
 
 Start Yinshu. Add `http://127.0.0.1:5173` to the website list.
 
@@ -15,126 +15,4 @@ npm install
 npm run dev
 ```
 
-Open http://127.0.0.1:5173/ — pick a template, fill vars, print.
-
-## 2. Print
-
-Keep the template in your app. Import **text** with `?raw`. Do not pass a file path. Whatever you set replaces `{{key}}` as-is. No barcode math. No prefixes.
-
-```ts
-import { YinshuClient, pickPrinter, printTemplateVars, printZpl } from '@yinshu/print-zpl';
-import rhPositive from './templates/rh-positive.zpl?raw';
-
-printTemplateVars(rhPositive);
-
-const client = new YinshuClient();
-await client.connect();
-const printerName = pickPrinter(await client.getPrintersList());
-```
-
-Unsure which keys exist? `printTemplateVars` logs a copy-paste object.
-
-## 3. Examples
-
-Chongqing sample values. Rh-negative only changes `RHD`. Unqualified uses 19 keys. Join multiple discard reasons with `\\&`.
-
-### Rh-positive — `rh-positive.zpl` (25 keys)
-
-```ts
-await printZpl(client, printerName, rhPositive, {
-  donCode_Bar: '=5>500002606533455',
-  donCode_Station: '50000',
-  donCode_Year: '26',
-  donCode_NO: '065334',
-  donCode_State: '55',
-  donCode_Check: 'W',
-  bloodTypeCode_Bar: '=%>52800',
-  bloodTypeCode: '2800',
-  expiryCode_Bar: '&>0>50272321357',
-  prodCode_Bar: '=<D2140600',
-  prodCode: 'D2140600',
-  expiryCode: '0272321357',
-  ABO: 'AB',
-  RHD: 'Rh(D)阳性',
-  prodName: '病毒灭活新鲜冰冻血浆150ml',
-  volumeAndUnit: '150 ml',
-  expiryTime: '2027-08-20 13:57',
-  collectTime: '2026-08-20 13:57',
-  prepTime: '2027-08-20 20:08',
-  indications: '临床适应症：适用于凝血因子缺乏或大量输血伴有凝血障碍',
-  precautions: '注意事项：输注前请检查包装是否完好无损，外观是否正常',
-  solution: 'ACD-B',
-  temperature: '2-6℃',
-  collector: '085',
-  preparer: 'JSK'
-});
-```
-
-### Rh-negative — `rh-negative.zpl` (same 25 keys)
-
-```ts
-import rhNegative from './templates/rh-negative.zpl?raw';
-
-await printZpl(client, printerName, rhNegative, {
-  donCode_Bar: '=5>500002606533455',
-  donCode_Station: '50000',
-  donCode_Year: '26',
-  donCode_NO: '065334',
-  donCode_State: '55',
-  donCode_Check: 'W',
-  bloodTypeCode_Bar: '=%>52800',
-  bloodTypeCode: '2800',
-  expiryCode_Bar: '&>0>50272321357',
-  prodCode_Bar: '=<D2140600',
-  prodCode: 'D2140600',
-  expiryCode: '0272321357',
-  ABO: 'AB',
-  RHD: 'Rh(D)阴性',
-  prodName: '病毒灭活新鲜冰冻血浆150ml',
-  volumeAndUnit: '150 ml',
-  expiryTime: '2027-08-20 13:57',
-  collectTime: '2026-08-20 13:57',
-  prepTime: '2027-08-20 20:08',
-  indications: '临床适应症：适用于凝血因子缺乏或大量输血伴有凝血障碍',
-  precautions: '注意事项：输注前请检查包装是否完好无损，外观是否正常',
-  solution: 'ACD-B',
-  temperature: '2-6℃',
-  collector: '085',
-  preparer: 'JSK'
-});
-```
-
-### Unqualified — `unqualified.zpl` (19 keys)
-
-```ts
-import unqualified from './templates/unqualified.zpl?raw';
-
-await printZpl(client, printerName, unqualified, {
-  donCode_Bar: '=5>500002606533455',
-  donCode_Station: '50000',
-  donCode_Year: '26',
-  donCode_NO: '065334',
-  donCode_State: '55',
-  donCode_Check: 'W',
-  bloodTypeCode_Bar: '=%>52800',
-  bloodTypeCode: '2800',
-  prodCode_Bar: '=<D2140600',
-  prodCode: 'D2140600',
-  ABO: 'AB',
-  RHD: 'Rh(D)阳性',
-  prodName: '病毒灭活新鲜冰冻血浆150ml',
-  discardReason: 'ALT不合格\\&HBsAg阳性',
-  volumeAndUnit: '150 ml',
-  solution: 'ACD-B',
-  temperature: '2-6℃',
-  collector: '085',
-  preparer: 'JSK'
-});
-```
-
-## 4. Rules
-
-- Takeaway: `packages/print-zpl`
-- Surface: `YinshuClient` · `printZpl` · `printTemplateVars` · `pickPrinter` · `listPlaceholders`
-- Blood labels: ZPL RAW only. Do not use `@brick/arjs` `printPdf`.
-- Templates live in `src/templates/`. Start with `minimal` to test the path.
+Open http://127.0.0.1:5173/ — pick a template, fill vars, print. Templates are in `src/templates/`. Start with `minimal` to test the path.

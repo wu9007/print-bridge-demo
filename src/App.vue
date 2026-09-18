@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
-import { YinshuClient, YinshuError, listPlaceholders, printZpl, type YinshuPrinter } from "@yinshu/print-zpl";
-import { CHONGQING_SAMPLE, FIELD_LABELS } from "./lib/bloodLabel";
-import { buildTestPdf } from "./lib/testPdf";
+import { YinshuClient, listPlaceholders, printZpl, type YinshuPrinter } from "@yinshu/print-zpl";
+import { FIELD_LABELS, SAMPLE_VARS } from "./lib/fields";
 import { ZPL_TEMPLATES, getTemplate, type TemplateId } from "./lib/zplTemplate";
 
 type Tone = "muted" | "ok" | "bad";
@@ -13,7 +12,7 @@ const templateId = ref<TemplateId>("minimal");
 const connected = ref(false);
 const busy = ref(false);
 const rasterizeCjk = ref(true);
-const fields = reactive<Record<string, string>>({ ...CHONGQING_SAMPLE });
+const fields = reactive<Record<string, string>>({ ...SAMPLE_VARS });
 const parsedKeys = ref<string[]>([]);
 const status = ref("正在连接…");
 const tone = ref<Tone>("muted");
@@ -22,12 +21,6 @@ const currentTemplate = computed(() => getTemplate(templateId.value));
 const canPrint = computed(
   () => !busy.value && connected.value && Boolean(printerName.value),
 );
-
-const labelPrinter = computed(() =>
-  /citizen|zebra|zdesigner|cl-s|gx430|gk420|zd/i.test(printerName.value),
-);
-
-const canPrintPdf = computed(() => canPrint.value && !labelPrinter.value);
 
 const visibleFields = computed(() =>
   parsedKeys.value.map((key) => ({
@@ -45,9 +38,6 @@ function setStatus(next: string, nextTone: Tone = "muted"): void {
 }
 
 function errorText(error: unknown): string {
-  if (error instanceof YinshuError) {
-    return error.message.replace(/\.$/, "");
-  }
   return error instanceof Error ? error.message : String(error);
 }
 
@@ -85,10 +75,7 @@ function applyPrinters(next: YinshuPrinter[]): void {
 }
 
 function flag(item: YinshuPrinter): string {
-  if (item.online) {
-    return "在线";
-  }
-  return item.status === "已停用" ? "已停用" : "离线";
+  return item.online ? "在线" : "离线";
 }
 
 async function loadPrinters(): Promise<void> {
@@ -105,9 +92,6 @@ async function connect(): Promise<void> {
     disposeClient();
     const next = new YinshuClient();
     unsubs.push(
-      next.on("connect", () => {
-        connected.value = true;
-      }),
       next.on("disconnect", () => {
         connected.value = false;
         setStatus("已断开", "bad");
@@ -115,6 +99,7 @@ async function connect(): Promise<void> {
     );
     await next.connect();
     client = next;
+    connected.value = true;
     await loadPrinters();
     setStatus(printers.value.length ? "已连接" : "已连接，未发现打印机");
   } catch (error) {
@@ -160,25 +145,6 @@ async function printJob(): Promise<void> {
       rasterizeCjk: rasterizeCjk.value,
     });
     setStatus("已发送", "ok");
-  } catch (error) {
-    setStatus(errorText(error), "bad");
-  } finally {
-    busy.value = false;
-  }
-}
-
-async function printPdfJob(): Promise<void> {
-  if (!(await ensureClient()) || !client) {
-    return;
-  }
-  busy.value = true;
-  setStatus("PDF 发送中…");
-  try {
-    await client.printPdf({
-      printerName: printerName.value,
-      pdf: buildTestPdf(),
-    });
-    setStatus("PDF 已发送", "ok");
   } catch (error) {
     setStatus(errorText(error), "bad");
   } finally {
@@ -250,7 +216,7 @@ onUnmounted(() => {
           <button type="button" class="link" :disabled="busy" @click="refreshPrinters">刷新</button>
         </div>
         <p v-if="!printers.length" class="empty">{{ connected ? "无可用打印机" : "未连接" }}</p>
-        <div v-else class="printers" role="listbox" :aria-label="'打印机'">
+        <div v-else class="printers" role="listbox" aria-label="打印机">
           <button
             v-for="item in printers"
             :key="item.name"
@@ -275,16 +241,6 @@ onUnmounted(() => {
       <button type="button" class="submit" :disabled="!canPrint" @click="printJob">
         {{ busy ? "发送中…" : "打印 ZPL" }}
       </button>
-      <button type="button" class="ghost" :disabled="!canPrintPdf" @click="printPdfJob">
-        测试 PDF
-      </button>
-      <p class="hint">
-        {{
-          labelPrinter
-            ? "当前是标签机，PDF 测试已关掉，避免再烧标签纸。"
-            : "PDF 走印枢 format=pdf，和 ZPL raw 无关。请打到激光机。"
-        }}
-      </p>
     </div>
   </div>
 </template>
@@ -490,26 +446,12 @@ input:focus {
   text-underline-offset: 3px;
 }
 
-.submit,
-.ghost {
+.submit {
   width: 100%;
   padding: 10px 12px;
-}
-
-.submit {
   border: 0;
   background: var(--text);
   color: #fff;
-}
-
-.ghost {
-  margin-top: 8px;
-  border: 1px solid var(--line);
-  background: #fff;
-}
-
-.ghost + .hint {
-  margin-top: 10px;
 }
 
 @media (max-width: 800px) {

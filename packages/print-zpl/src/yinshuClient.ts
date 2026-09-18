@@ -23,7 +23,6 @@ type Pending = {
 type ServerMessage = {
   type?: string;
   request_id?: string;
-  time?: number;
   printers?: unknown;
   job_id?: string;
   status?: string;
@@ -44,7 +43,7 @@ export class YinshuClient {
 
   constructor(private readonly options: { host?: string; port?: number } = {}) {}
 
-  url(): string {
+  private url(): string {
     const host = this.options.host?.trim() || "127.0.0.1";
     const port = this.options.port || 17890;
     return `ws://${host}:${port}/ws`;
@@ -132,20 +131,6 @@ export class YinshuClient {
       format: "raw",
       printer_name: req.printerName,
       data_base64,
-    });
-  }
-
-  /** 印枢 PDF：`file_url` 用 data URL。和 RAW 不是一条路。 */
-  async printPdf(req: { printerName: string; pdf: Uint8Array | string }): Promise<void> {
-    const pdfBase64 = typeof req.pdf === "string" ? req.pdf : bytesToBase64(req.pdf);
-    if (!pdfBase64) {
-      throw new YinshuError("PDF 为空", "INVALID_DATA");
-    }
-    await this.request("print", {
-      job_id: this.nextId("job"),
-      format: "pdf",
-      printer_name: req.printerName,
-      file_url: `data:application/pdf;base64,${pdfBase64}`,
     });
   }
 
@@ -277,10 +262,6 @@ function fromProtocolError(code?: string, message?: string): YinshuError {
 
 function textToBase64(text: string): string {
   return btoa(bytesToBinary(new TextEncoder().encode(text.replace(/<STX>/gi, "\x02"))));
-}
-
-function bytesToBase64(bytes: Uint8Array): string {
-  return btoa(bytesToBinary(bytes));
 }
 
 function bytesToBinary(bytes: Uint8Array): string {

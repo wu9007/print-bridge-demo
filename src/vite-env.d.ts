@@ -1,10 +1,5 @@
 /// <reference types="vite/client" />
 
-declare module "*.TTF?url" {
-  const src: string;
-  export default src;
-}
-
 declare module "*.zpl?raw" {
   const src: string;
   export default src;

@@ -12,7 +12,7 @@ export type PrintZplOptions = {
   rasterizeCjk?: boolean;
 };
 
-/** 按出现顺序去重，列出 {{donCode}} 这类占位符。 */
+/** 按出现顺序去重，列出 {{sku}} 这类占位符。 */
 export function listPlaceholders(templateText: string): string[] {
   const keys: string[] = [];
   const seen = new Set<string>();

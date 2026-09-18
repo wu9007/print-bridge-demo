@@ -1,0 +1,14 @@
+^XA
+^PW576
+^LL420
+^CI28
+^FO16,16^GB544,388,2^FS
+^FO32,32^A0N,32,28^FD航材 {{partName}}^FS
+^FO32,84^A0N,26,22^FD件号 {{partNo}}^FS
+^FO32,124^A0N,26,22^FD序号 {{serial}}^FS
+^FO32,164^A0N,26,22^FD批次 {{batch}}^FS
+^FO32,204^A0N,26,22^FD寿命至 {{due}}^FS
+^FO32,260^BY2^BCN,72,N,N,N^FD{{partNo}}^FS
+^FO32,350^A0N,22,18^FD{{partNo}}^FS
+^PQ1
+^XZ

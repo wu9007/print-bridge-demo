@@ -1,0 +1,14 @@
+^XA
+^PW576
+^LL400
+^CI28
+^FO16,16^GB544,368,2^FS
+^FO32,32^A0N,36,32^FD{{hospital}}^FS
+^FO32,84^A0N,28,24^FD科室 {{dept}}^FS
+^FO32,124^A0N,28,24^FD床号 {{bed}}^FS
+^FO32,164^A0N,28,24^FD姓名 {{name}}^FS
+^FO32,210^A0N,24,20^FD就诊号 {{visitNo}}^FS
+^FO32,250^BY2^BCN,72,N,N,N^FD{{visitNo}}^FS
+^FO32,340^A0N,22,18^FD{{visitNo}}^FS
+^PQ1
+^XZ

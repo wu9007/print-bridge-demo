@@ -16,7 +16,7 @@ your-app/
 
 ```ts
 import { YinshuClient, pickPrinter, printTemplateVars, printZpl } from './print-zpl';
-import rhPositive from './templates/rh-positive.zpl?raw';
+import label from './templates/label.zpl?raw';
 ```
 
 Optional alias:
@@ -35,127 +35,31 @@ Optional alias:
 ## 3. Print
 
 ```ts
-printTemplateVars(rhPositive);
+printTemplateVars(label);
 
 const client = new YinshuClient();
 await client.connect();
 const printerName = pickPrinter(await client.getPrintersList());
 
-await printZpl(client, printerName, rhPositive, {
-  // paste keys from printTemplateVars, then fill
+await printZpl(client, printerName, label, {
+  title: 'Sample',
+  sku: 'A-1001',
+  note: 'Line 1\\&Line 2',
 });
 ```
 
-Pass **template text**, not a file path. Missing keys stay `{{key}}`. Extra keys are ignored. No barcode math. No prefixes.
+Pass **template text**, not a file path. Missing keys stay `{{key}}`. Extra keys are ignored. No barcode math. No prefixes. Join lines in one field with `\\&`.
 
 CJK in `^FD` is drawn as `^GFA` by default. Turn off with `{ rasterizeCjk: false }`.
 
-## 4. Examples
+Unsure which keys exist? `printTemplateVars` logs a copy-paste object.
 
-Chongqing sample. Rh-negative only changes `RHD`. Unqualified has 19 keys. Join discard reasons with `\\&`.
-
-### Rh-positive — `rh-positive.zpl` (25 keys)
-
-```ts
-await printZpl(client, printerName, rhPositive, {
-  donCode_Bar: '=5>500002606533455',
-  donCode_Station: '50000',
-  donCode_Year: '26',
-  donCode_NO: '065334',
-  donCode_State: '55',
-  donCode_Check: 'W',
-  bloodTypeCode_Bar: '=%>52800',
-  bloodTypeCode: '2800',
-  expiryCode_Bar: '&>0>50272321357',
-  prodCode_Bar: '=<D2140600',
-  prodCode: 'D2140600',
-  expiryCode: '0272321357',
-  ABO: 'AB',
-  RHD: 'Rh(D)阳性',
-  prodName: '病毒灭活新鲜冰冻血浆150ml',
-  volumeAndUnit: '150 ml',
-  expiryTime: '2027-08-20 13:57',
-  collectTime: '2026-08-20 13:57',
-  prepTime: '2027-08-20 20:08',
-  indications: '临床适应症：适用于凝血因子缺乏或大量输血伴有凝血障碍',
-  precautions: '注意事项：输注前请检查包装是否完好无损，外观是否正常',
-  solution: 'ACD-B',
-  temperature: '2-6℃',
-  collector: '085',
-  preparer: 'JSK'
-});
-```
-
-### Rh-negative — `rh-negative.zpl` (same 25 keys)
-
-```ts
-import rhNegative from './templates/rh-negative.zpl?raw';
-
-await printZpl(client, printerName, rhNegative, {
-  donCode_Bar: '=5>500002606533455',
-  donCode_Station: '50000',
-  donCode_Year: '26',
-  donCode_NO: '065334',
-  donCode_State: '55',
-  donCode_Check: 'W',
-  bloodTypeCode_Bar: '=%>52800',
-  bloodTypeCode: '2800',
-  expiryCode_Bar: '&>0>50272321357',
-  prodCode_Bar: '=<D2140600',
-  prodCode: 'D2140600',
-  expiryCode: '0272321357',
-  ABO: 'AB',
-  RHD: 'Rh(D)阴性',
-  prodName: '病毒灭活新鲜冰冻血浆150ml',
-  volumeAndUnit: '150 ml',
-  expiryTime: '2027-08-20 13:57',
-  collectTime: '2026-08-20 13:57',
-  prepTime: '2027-08-20 20:08',
-  indications: '临床适应症：适用于凝血因子缺乏或大量输血伴有凝血障碍',
-  precautions: '注意事项：输注前请检查包装是否完好无损，外观是否正常',
-  solution: 'ACD-B',
-  temperature: '2-6℃',
-  collector: '085',
-  preparer: 'JSK'
-});
-```
-
-### Unqualified — `unqualified.zpl` (19 keys)
-
-```ts
-import unqualified from './templates/unqualified.zpl?raw';
-
-await printZpl(client, printerName, unqualified, {
-  donCode_Bar: '=5>500002606533455',
-  donCode_Station: '50000',
-  donCode_Year: '26',
-  donCode_NO: '065334',
-  donCode_State: '55',
-  donCode_Check: 'W',
-  bloodTypeCode_Bar: '=%>52800',
-  bloodTypeCode: '2800',
-  prodCode_Bar: '=<D2140600',
-  prodCode: 'D2140600',
-  ABO: 'AB',
-  RHD: 'Rh(D)阳性',
-  prodName: '病毒灭活新鲜冰冻血浆150ml',
-  discardReason: 'ALT不合格\\&HBsAg阳性',
-  volumeAndUnit: '150 ml',
-  solution: 'ACD-B',
-  temperature: '2-6℃',
-  collector: '085',
-  preparer: 'JSK'
-});
-```
-
-## 5. Surface
+## 4. Surface
 
 | Use | Name |
 | --- | --- |
-| Connect / list / PDF test | `YinshuClient` |
-| Print a blood label | `printZpl` |
+| Connect / list | `YinshuClient` |
+| Print ZPL | `printZpl` |
 | Dump keys to the console | `printTemplateVars` |
 | Form fields | `listPlaceholders` |
 | First online printer | `pickPrinter` |
-
-Blood labels: `printZpl` only. Do not use `printPdf` / `@brick/arjs`. These templates are `^PW672` / `^LL1240` at **203 DPI**.
