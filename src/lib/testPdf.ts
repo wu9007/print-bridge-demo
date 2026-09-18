@@ -1,4 +1,4 @@
-/** 一页很小的测试 PDF，只给 demo 回归托盘 printPdf。 */
+/** 一页很小的测试 PDF，只给 demo 回归印枢 format=pdf。 */
 export function buildTestPdf(): Uint8Array {
   const content = "BT /F1 18 Tf 36 360 Td (printPdf OK) Tj ET\n";
   const objects = [

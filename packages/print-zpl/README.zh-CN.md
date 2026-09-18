@@ -1,44 +1,60 @@
-# Yinshu Demo
+# @yinshu/print-zpl
 
-**English** · [中文](README.zh-CN.md)
+[English](README.md) · **中文**
 
-Local Yinshu demo for blood-label **ZPL RAW**. Take `packages/print-zpl`. Not PDF / ARJS.
+把这个目录拷进业务仓。`{{变量}}` 原样替换，发 **ZPL RAW** 给印枢（`ws://127.0.0.1:17890/ws`）。不是 PDF / ARJS。
 
-研发用法以 [packages/print-zpl/README.md](packages/print-zpl/README.md) 为准。
+需要浏览器 + Vite（`?raw`、`?url`）。不用先发包。
 
-## 1. Run
+## 1. 拿走
 
-Start Yinshu. Add `http://127.0.0.1:5173` to the website list.
-
-```bash
-npm install
-npm run dev
+```text
+your-app/
+  print-zpl/          ← 本目录
+  templates/*.zpl
 ```
 
-Open http://127.0.0.1:5173/ — pick a template, fill vars, print.
+```ts
+import { YinshuClient, pickPrinter, printTemplateVars, printZpl } from './print-zpl';
+import rhPositive from './templates/rh-positive.zpl?raw';
+```
 
-## 2. Print
-
-Keep the template in your app. Import **text** with `?raw`. Do not pass a file path. Whatever you set replaces `{{key}}` as-is. No barcode math. No prefixes.
+可选别名：
 
 ```ts
-import { YinshuClient, pickPrinter, printTemplateVars, printZpl } from '@yinshu/print-zpl';
-import rhPositive from './templates/rh-positive.zpl?raw';
+// vite.config.ts
+{ '@yinshu/print-zpl': fileURLToPath(new URL('./print-zpl/src/index.ts', import.meta.url)) }
+```
 
+## 2. 印枢
+
+1. 启动印枢。
+2. 网站名单必须包含当前页面 Origin（本 demo：`http://127.0.0.1:5173`）。
+3. `queued` 是收下了，不是纸已经出来。
+
+## 3. 打印
+
+```ts
 printTemplateVars(rhPositive);
 
 const client = new YinshuClient();
 await client.connect();
 const printerName = pickPrinter(await client.getPrintersList());
+
+await printZpl(client, printerName, rhPositive, {
+  // 把 printTemplateVars 打出的键填上
+});
 ```
 
-Unsure which keys exist? `printTemplateVars` logs a copy-paste object.
+传模板 **内容**，不要传文件路径。没设的键会留下 `{{key}}`。多传的键忽略。不算条码，不加前缀。
 
-## 3. Examples
+`^FD` 里的汉字默认画成 `^GFA`。关掉：`{ rasterizeCjk: false }`。
 
-Chongqing sample values. Rh-negative only changes `RHD`. Unqualified uses 19 keys. Join multiple discard reasons with `\\&`.
+## 4. 完整示例
 
-### Rh-positive — `rh-positive.zpl` (25 keys)
+重庆合格签样例。阴性只改 `RHD`。不合格 19 个键。多原因用 `\\&` 换行。
+
+### 阳性合格 — `rh-positive.zpl`（25 键）
 
 ```ts
 await printZpl(client, printerName, rhPositive, {
@@ -70,7 +86,7 @@ await printZpl(client, printerName, rhPositive, {
 });
 ```
 
-### Rh-negative — `rh-negative.zpl` (same 25 keys)
+### 阴性合格 — `rh-negative.zpl`（同样 25 键）
 
 ```ts
 import rhNegative from './templates/rh-negative.zpl?raw';
@@ -104,7 +120,7 @@ await printZpl(client, printerName, rhNegative, {
 });
 ```
 
-### Unqualified — `unqualified.zpl` (19 keys)
+### 不合格 — `unqualified.zpl`（19 键）
 
 ```ts
 import unqualified from './templates/unqualified.zpl?raw';
@@ -132,9 +148,14 @@ await printZpl(client, printerName, unqualified, {
 });
 ```
 
-## 4. Rules
+## 5. 包面
 
-- Takeaway: `packages/print-zpl`
-- Surface: `YinshuClient` · `printZpl` · `printTemplateVars` · `pickPrinter` · `listPlaceholders`
-- Blood labels: ZPL RAW only. Do not use `@brick/arjs` `printPdf`.
-- Templates live in `src/templates/`. Start with `minimal` to test the path.
+| 干什么 | 用什么 |
+| --- | --- |
+| 连接 / 列表 / 测 PDF | `YinshuClient` |
+| 打血签 | `printZpl` |
+| 打出可粘贴的键 | `printTemplateVars` |
+| 做表单 | `listPlaceholders` |
+| 选一台在线打印机 | `pickPrinter` |
+
+血签只走 `printZpl`。不要用 `printPdf` / `@brick/arjs`。这些模板是 `^PW672` / `^LL1240`，按 **203 DPI** 排的。

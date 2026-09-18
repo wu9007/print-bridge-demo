@@ -1,25 +1,25 @@
-# Yinshu Demo
+# 印枢 Demo
 
-**English** · [中文](README.zh-CN.md)
+[English](README.md) · **中文**
 
-Local Yinshu demo for blood-label **ZPL RAW**. Take `packages/print-zpl`. Not PDF / ARJS.
+印枢血签 **ZPL RAW** 演示。拿走 `packages/print-zpl`。不是 PDF / ARJS。
 
-研发用法以 [packages/print-zpl/README.md](packages/print-zpl/README.md) 为准。
+研发用法以 [packages/print-zpl/README.zh-CN.md](packages/print-zpl/README.zh-CN.md) 为准。
 
-## 1. Run
+## 1. 跑起来
 
-Start Yinshu. Add `http://127.0.0.1:5173` to the website list.
+先启动印枢。网站名单加上 `http://127.0.0.1:5173`。
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open http://127.0.0.1:5173/ — pick a template, fill vars, print.
+打开 http://127.0.0.1:5173/ — 选模板、填变量、打印。
 
-## 2. Print
+## 2. 怎么打
 
-Keep the template in your app. Import **text** with `?raw`. Do not pass a file path. Whatever you set replaces `{{key}}` as-is. No barcode math. No prefixes.
+模板放在业务仓。用 `?raw` 引入 **内容**，不要传文件路径。研发设什么，`{{变量}}` 就换成什么。不算条码，不加前缀。
 
 ```ts
 import { YinshuClient, pickPrinter, printTemplateVars, printZpl } from '@yinshu/print-zpl';
@@ -32,13 +32,13 @@ await client.connect();
 const printerName = pickPrinter(await client.getPrintersList());
 ```
 
-Unsure which keys exist? `printTemplateVars` logs a copy-paste object.
+不确定有哪些键时，用 `printTemplateVars` 打出可粘贴对象。
 
-## 3. Examples
+## 3. 完整示例
 
-Chongqing sample values. Rh-negative only changes `RHD`. Unqualified uses 19 keys. Join multiple discard reasons with `\\&`.
+值来自重庆合格签样例。阴性只改 `RHD`。不合格 19 个键。多原因用 `\\&` 换行。
 
-### Rh-positive — `rh-positive.zpl` (25 keys)
+### 阳性合格 — `rh-positive.zpl`（25 键）
 
 ```ts
 await printZpl(client, printerName, rhPositive, {
@@ -70,7 +70,7 @@ await printZpl(client, printerName, rhPositive, {
 });
 ```
 
-### Rh-negative — `rh-negative.zpl` (same 25 keys)
+### 阴性合格 — `rh-negative.zpl`（同样 25 键）
 
 ```ts
 import rhNegative from './templates/rh-negative.zpl?raw';
@@ -104,7 +104,7 @@ await printZpl(client, printerName, rhNegative, {
 });
 ```
 
-### Unqualified — `unqualified.zpl` (19 keys)
+### 不合格 — `unqualified.zpl`（19 键）
 
 ```ts
 import unqualified from './templates/unqualified.zpl?raw';
@@ -132,9 +132,9 @@ await printZpl(client, printerName, unqualified, {
 });
 ```
 
-## 4. Rules
+## 4. 约定
 
-- Takeaway: `packages/print-zpl`
-- Surface: `YinshuClient` · `printZpl` · `printTemplateVars` · `pickPrinter` · `listPlaceholders`
-- Blood labels: ZPL RAW only. Do not use `@brick/arjs` `printPdf`.
-- Templates live in `src/templates/`. Start with `minimal` to test the path.
+- 拿走：`packages/print-zpl`
+- 包面：`YinshuClient` · `printZpl` · `printTemplateVars` · `pickPrinter` · `listPlaceholders`
+- 血签只走 ZPL RAW，不要用 `@brick/arjs` 的 `printPdf`
+- 模板在 `src/templates/`。先用 `minimal` 试通路

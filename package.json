@@ -8,8 +8,11 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview"
   },
+  "workspaces": [
+    "packages/print-zpl"
+  ],
   "dependencies": {
-    "@brick/print-zpl": "^0.1.0",
+    "@yinshu/print-zpl": "*",
     "vue": "^3.5.21"
   },
   "devDependencies": {

@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
-import { DriverTrayClient, DriverTrayError, listPlaceholders, printZpl, type TrayPrinter } from "@brick/print-zpl";
+import { YinshuClient, YinshuError, listPlaceholders, printZpl, type YinshuPrinter } from "@yinshu/print-zpl";
 import { CHONGQING_SAMPLE, FIELD_LABELS } from "./lib/bloodLabel";
 import { buildTestPdf } from "./lib/testPdf";
 import { ZPL_TEMPLATES, getTemplate, type TemplateId } from "./lib/zplTemplate";
 
 type Tone = "muted" | "ok" | "bad";
 
-const printers = ref<TrayPrinter[]>([]);
+const printers = ref<YinshuPrinter[]>([]);
 const printerName = ref("");
 const templateId = ref<TemplateId>("minimal");
 const connected = ref(false);
@@ -36,7 +36,7 @@ const visibleFields = computed(() =>
   })),
 );
 
-let client: DriverTrayClient | null = null;
+let client: YinshuClient | null = null;
 const unsubs: Array<() => void> = [];
 
 function setStatus(next: string, nextTone: Tone = "muted"): void {
@@ -45,7 +45,7 @@ function setStatus(next: string, nextTone: Tone = "muted"): void {
 }
 
 function errorText(error: unknown): string {
-  if (error instanceof DriverTrayError) {
+  if (error instanceof YinshuError) {
     return error.message.replace(/\.$/, "");
   }
   return error instanceof Error ? error.message : String(error);
@@ -77,14 +77,14 @@ function disposeClient(): void {
   connected.value = false;
 }
 
-function applyPrinters(next: TrayPrinter[]): void {
+function applyPrinters(next: YinshuPrinter[]): void {
   printers.value = next;
   if (!next.some((item) => item.name === printerName.value)) {
     printerName.value = "";
   }
 }
 
-function flag(item: TrayPrinter): string {
+function flag(item: YinshuPrinter): string {
   if (item.online) {
     return "在线";
   }
@@ -103,7 +103,7 @@ async function connect(): Promise<void> {
   setStatus("正在连接…");
   try {
     disposeClient();
-    const next = new DriverTrayClient();
+    const next = new YinshuClient();
     unsubs.push(
       next.on("connect", () => {
         connected.value = true;
@@ -120,7 +120,7 @@ async function connect(): Promise<void> {
   } catch (error) {
     disposeClient();
     printers.value = [];
-    setStatus(errorText(error) || "未连接，请先启动驱动助手", "bad");
+    setStatus(errorText(error) || "未连接。请确认印枢已启动，并且网站名单包含当前页面。", "bad");
   } finally {
     busy.value = false;
   }
@@ -215,7 +215,7 @@ onUnmounted(() => {
       <header>
         <div>
           <h1>印枢</h1>
-          <p class="hint">填变量、转中文、发给本机驱动助手。模板用内容，不传路径。</p>
+          <p class="hint">填变量、转中文、发给本机印枢。模板用内容，不传路径。</p>
         </div>
         <p :class="['state', tone]">
           {{ status }}
@@ -282,7 +282,7 @@ onUnmounted(() => {
         {{
           labelPrinter
             ? "当前是标签机，PDF 测试已关掉，避免再烧标签纸。"
-            : "PDF 走托盘原来的 printPdf，和 ZPL raw 无关。请打到激光机。"
+            : "PDF 走印枢 format=pdf，和 ZPL raw 无关。请打到激光机。"
         }}
       </p>
     </div>

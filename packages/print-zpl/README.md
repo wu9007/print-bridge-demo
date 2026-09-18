@@ -1,42 +1,58 @@
-# Yinshu Demo
+# @yinshu/print-zpl
 
 **English** · [中文](README.zh-CN.md)
 
-Local Yinshu demo for blood-label **ZPL RAW**. Take `packages/print-zpl`. Not PDF / ARJS.
+Copy this folder. Fill `{{keys}}` as-is. Send **ZPL RAW** to Yinshu (`ws://127.0.0.1:17890/ws`). Not PDF / ARJS.
 
-研发用法以 [packages/print-zpl/README.md](packages/print-zpl/README.md) 为准。
+Needs a browser + Vite (`?raw`, `?url`). No publish step.
 
-## 1. Run
+## 1. Take
 
-Start Yinshu. Add `http://127.0.0.1:5173` to the website list.
-
-```bash
-npm install
-npm run dev
+```text
+your-app/
+  print-zpl/          ← this folder
+  templates/*.zpl
 ```
 
-Open http://127.0.0.1:5173/ — pick a template, fill vars, print.
+```ts
+import { YinshuClient, pickPrinter, printTemplateVars, printZpl } from './print-zpl';
+import rhPositive from './templates/rh-positive.zpl?raw';
+```
 
-## 2. Print
-
-Keep the template in your app. Import **text** with `?raw`. Do not pass a file path. Whatever you set replaces `{{key}}` as-is. No barcode math. No prefixes.
+Optional alias:
 
 ```ts
-import { YinshuClient, pickPrinter, printTemplateVars, printZpl } from '@yinshu/print-zpl';
-import rhPositive from './templates/rh-positive.zpl?raw';
+// vite.config.ts
+{ '@yinshu/print-zpl': fileURLToPath(new URL('./print-zpl/src/index.ts', import.meta.url)) }
+```
 
+## 2. Yinshu
+
+1. Start Yinshu.
+2. Website list must include this page Origin (`http://127.0.0.1:5173` for this demo).
+3. `queued` means accepted. It does not mean paper is out.
+
+## 3. Print
+
+```ts
 printTemplateVars(rhPositive);
 
 const client = new YinshuClient();
 await client.connect();
 const printerName = pickPrinter(await client.getPrintersList());
+
+await printZpl(client, printerName, rhPositive, {
+  // paste keys from printTemplateVars, then fill
+});
 ```
 
-Unsure which keys exist? `printTemplateVars` logs a copy-paste object.
+Pass **template text**, not a file path. Missing keys stay `{{key}}`. Extra keys are ignored. No barcode math. No prefixes.
 
-## 3. Examples
+CJK in `^FD` is drawn as `^GFA` by default. Turn off with `{ rasterizeCjk: false }`.
 
-Chongqing sample values. Rh-negative only changes `RHD`. Unqualified uses 19 keys. Join multiple discard reasons with `\\&`.
+## 4. Examples
+
+Chongqing sample. Rh-negative only changes `RHD`. Unqualified has 19 keys. Join discard reasons with `\\&`.
 
 ### Rh-positive — `rh-positive.zpl` (25 keys)
 
@@ -132,9 +148,14 @@ await printZpl(client, printerName, unqualified, {
 });
 ```
 
-## 4. Rules
+## 5. Surface
 
-- Takeaway: `packages/print-zpl`
-- Surface: `YinshuClient` · `printZpl` · `printTemplateVars` · `pickPrinter` · `listPlaceholders`
-- Blood labels: ZPL RAW only. Do not use `@brick/arjs` `printPdf`.
-- Templates live in `src/templates/`. Start with `minimal` to test the path.
+| Use | Name |
+| --- | --- |
+| Connect / list / PDF test | `YinshuClient` |
+| Print a blood label | `printZpl` |
+| Dump keys to the console | `printTemplateVars` |
+| Form fields | `listPlaceholders` |
+| First online printer | `pickPrinter` |
+
+Blood labels: `printZpl` only. Do not use `printPdf` / `@brick/arjs`. These templates are `^PW672` / `^LL1240` at **203 DPI**.
