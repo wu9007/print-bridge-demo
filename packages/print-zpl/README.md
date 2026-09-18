@@ -16,7 +16,7 @@ your-app/
 
 ```ts
 import { YinshuClient, pickPrinter, printTemplateVars, printZpl } from './print-zpl';
-import label from './templates/label.zpl?raw';
+import hospital from './templates/hospital.zpl?raw';
 ```
 
 Optional alias:
@@ -35,26 +35,66 @@ Optional alias:
 ## 3. Print
 
 ```ts
-printTemplateVars(label);
+printTemplateVars(hospital);
 
 const client = new YinshuClient();
 await client.connect();
 const printerName = pickPrinter(await client.getPrintersList());
 
-await printZpl(client, printerName, label, {
-  title: 'Sample',
-  sku: 'A-1001',
-  note: 'Line 1\\&Line 2',
+await printZpl(client, printerName, hospital, {
+  // paste keys from printTemplateVars, then fill
 });
 ```
 
-Pass **template text**, not a file path. Missing keys stay `{{key}}`. Extra keys are ignored. No barcode math. No prefixes. Join lines in one field with `\\&`.
+Pass **template text**, not a file path. Missing keys stay `{{key}}`. Extra keys are ignored. No barcode math. No prefixes.
 
 CJK in `^FD` is drawn as `^GFA` by default. Turn off with `{ rasterizeCjk: false }`.
 
-Unsure which keys exist? `printTemplateVars` logs a copy-paste object.
+## 4. Examples
 
-## 4. Surface
+Join multiple lines in one field with `\\&`.
+
+### Hospital — `hospital.zpl` (5 keys)
+
+```ts
+await printZpl(client, printerName, hospital, {
+  hospital: '市第一医院',
+  dept: '骨科',
+  bed: '12-03',
+  name: '张三',
+  visitNo: '20260918001'
+});
+```
+
+### Aerospace — `aerospace.zpl` (5 keys)
+
+```ts
+import aerospace from './templates/aerospace.zpl?raw';
+
+await printZpl(client, printerName, aerospace, {
+  partName: '液压导管',
+  partNo: 'A320711234',
+  serial: 'SN88421',
+  batch: 'LOT2609',
+  due: '2028-03-01'
+});
+```
+
+### Industrial — `industrial.zpl` (5 keys)
+
+```ts
+import industrial from './templates/industrial.zpl?raw';
+
+await printZpl(client, printerName, industrial, {
+  title: '不锈钢法兰',
+  sku: 'A-1001',
+  qty: '24',
+  loc: 'A-03-12',
+  note: '防潮存放\\&轻拿轻放'
+});
+```
+
+## 5. Surface
 
 | Use | Name |
 | --- | --- |
@@ -63,3 +103,5 @@ Unsure which keys exist? `printTemplateVars` logs a copy-paste object.
 | Dump keys to the console | `printTemplateVars` |
 | Form fields | `listPlaceholders` |
 | First online printer | `pickPrinter` |
+
+Labels: `printZpl` only. Not PDF / ARJS. These templates are `^PW576` at **203 DPI**.

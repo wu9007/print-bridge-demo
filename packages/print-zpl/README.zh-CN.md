@@ -16,7 +16,7 @@ your-app/
 
 ```ts
 import { YinshuClient, pickPrinter, printTemplateVars, printZpl } from './print-zpl';
-import label from './templates/label.zpl?raw';
+import hospital from './templates/hospital.zpl?raw';
 ```
 
 可选别名：
@@ -35,26 +35,66 @@ import label from './templates/label.zpl?raw';
 ## 3. 打印
 
 ```ts
-printTemplateVars(label);
+printTemplateVars(hospital);
 
 const client = new YinshuClient();
 await client.connect();
 const printerName = pickPrinter(await client.getPrintersList());
 
-await printZpl(client, printerName, label, {
-  title: 'Sample',
-  sku: 'A-1001',
-  note: '第一行\\&第二行',
+await printZpl(client, printerName, hospital, {
+  // 把 printTemplateVars 打出的键填上
 });
 ```
 
-传模板 **内容**，不要传文件路径。没设的键会留下 `{{key}}`。多传的键忽略。不算条码，不加前缀。同一字段多行用 `\\&`。
+传模板 **内容**，不要传文件路径。没设的键会留下 `{{key}}`。多传的键忽略。不算条码，不加前缀。
 
 `^FD` 里的汉字默认画成 `^GFA`。关掉：`{ rasterizeCjk: false }`。
 
-不确定有哪些键时，用 `printTemplateVars` 打出可粘贴对象。
+## 4. 完整示例
 
-## 4. 包面
+同一字段多行用 `\\&`。
+
+### 医院就诊签 — `hospital.zpl`（5 键）
+
+```ts
+await printZpl(client, printerName, hospital, {
+  hospital: '市第一医院',
+  dept: '骨科',
+  bed: '12-03',
+  name: '张三',
+  visitNo: '20260918001'
+});
+```
+
+### 航材标签 — `aerospace.zpl`（5 键）
+
+```ts
+import aerospace from './templates/aerospace.zpl?raw';
+
+await printZpl(client, printerName, aerospace, {
+  partName: '液压导管',
+  partNo: 'A320711234',
+  serial: 'SN88421',
+  batch: 'LOT2609',
+  due: '2028-03-01'
+});
+```
+
+### 工业物料签 — `industrial.zpl`（5 键）
+
+```ts
+import industrial from './templates/industrial.zpl?raw';
+
+await printZpl(client, printerName, industrial, {
+  title: '不锈钢法兰',
+  sku: 'A-1001',
+  qty: '24',
+  loc: 'A-03-12',
+  note: '防潮存放\\&轻拿轻放'
+});
+```
+
+## 5. 包面
 
 | 干什么 | 用什么 |
 | --- | --- |
@@ -63,3 +103,5 @@ await printZpl(client, printerName, label, {
 | 打出可粘贴的键 | `printTemplateVars` |
 | 做表单 | `listPlaceholders` |
 | 选一台在线打印机 | `pickPrinter` |
+
+标签只走 `printZpl`。不是 PDF / ARJS。这些模板是 `^PW576`，按 **203 DPI** 排的。
